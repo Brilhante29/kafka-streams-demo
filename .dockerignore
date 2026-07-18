@@ -1,0 +1,9 @@
+﻿.git
+.gradle
+build
+benchmarks/results/*.json
+!benchmarks/results/baseline.json
+.portfolio-control
+.claude
+.codex
+.aitmpl

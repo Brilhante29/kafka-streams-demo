@@ -1,69 +1,73 @@
-# Architecture Decision
+﻿# Architecture Decision
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
-Project: `<project-name>`
-Claim: `<measurable claim>`
-Benchmark: `<primary metric>`
+Projeto `#28 kafka-streams-demo`. O problema Ã© um pipeline de eventos com
+enriquecimento por tabela e agregaÃ§Ã£o. A mÃ©trica Ã© `messages_per_second`, com
+latÃªncia sÃ­ncrona da topologia em lote fixo.
 
-Problem forces:
-
-- Domain complexity: `<low|medium|high>`
-- Integration pressure: `<low|medium|high>`
-- UI state complexity: `<low|medium|high|none>`
-- Data/ML reproducibility: `<low|medium|high>`
-- Auditability/event history: `<low|medium|high>`
-- Throughput/async pressure: `<low|medium|high>`
-- Independent deployability need: `<low|medium|high>`
+ForÃ§as: domÃ­nio baixo/mÃ©dio, integraÃ§Ã£o alta, estado de UI inexistente,
+reprodutibilidade alta, auditabilidade mÃ©dia, throughput/assÃ­ncrono alto e
+deploy independente baixo.
 
 ## Decision
 
-Chosen architecture: `<style>`
+Arquitetura escolhida: **event-driven com borda hexagonal mÃ­nima**.
 
-Reason:
+`domain` contÃ©m eventos e polÃ­tica pura. `infra` contÃ©m Kafka Streams, Serdes e
+configuraÃ§Ã£o. `benchmark` e testes sÃ£o adaptadores de entrada que usam o mesmo
+factory de topologia. A regra Ã© inward-only: domÃ­nio nÃ£o depende de broker,
+framework, cloud, persistÃªncia ou transporte.
 
-`<Explain why this architecture fits the actual problem and benchmark.>`
+## Why
 
-Dependency rule:
+Kafka Streams Ã© a prÃ³pria unidade de processamento a provar; esconder a
+topologia atrÃ¡s de uma camada de serviÃ§os criaria cÃ³digo sem aumentar evidÃªncia.
+O `TopologyTestDriver` permite testar join, filtragem e agregaÃ§Ã£o sem broker. O
+comando `run` preserva um caminho de produÃ§Ã£o real sem forÃ§ar esse custo no
+runtime padrÃ£o.
 
-`<Example: domain/application do not depend on infra; adapters depend inward through ports.>`
-
-## Rejected Alternatives
+## Rejected alternatives
 
 | Alternative | Why rejected |
 |---|---|
-| `<style>` | `<reason>` |
-| `<style>` | `<reason>` |
+| Microservices | NÃ£o hÃ¡ fronteira de deploy independente que justifique a complexidade. |
+| Spring Boot | O claim Ã© a topologia Kafka Streams; adicionar HTTP e contexto Spring desviaria o benchmark. |
+| Broker obrigatÃ³rio no default | Mediria setup/IO e quebraria o caminho determinÃ­stico pedido. |
+| CQRS/event sourcing completo | O resumo materializado Ã© suficiente; retenÃ§Ã£o, replay e auditoria completa estÃ£o fora do escopo. |
 
-## Folder Layout
+## Folder layout
 
-```txt
-src/
-  <folders>
-test/
-benchmarks/
+```text
+src/main/kotlin/com/portfolio/streaming/
+  domain/       contratos e regra pura
+  infra/        Kafka Streams, Serde e configuraÃ§Ã£o
+  benchmark/    fixture e JSON de mediÃ§Ã£o
+src/test/kotlin/com/portfolio/streaming/
+benchmarks/results/
+docs/
+sdd/
 ```
 
-## Testing Strategy
+## Testing strategy
 
-- Unit tests: `<what is isolated>`
-- Integration tests: `<what is wired>`
-- Benchmark: `<what proves the claim>`
+- Unit: `EnrichmentPolicy` e `CustomerSummary` sem Kafka.
+- Topology: `TopologyTestDriver` cobre join, aggregate e perfil ausente.
+- Validation: Ktlint, Gradle `check`, JSON vÃ¡lido, Docker build e CI.
+- Benchmark: lote determinÃ­stico que confirma contagem enriquecida e agregada.
 
 ## Consequences
 
-Positive:
+Positivas: execuÃ§Ã£o rÃ¡pida, sem credencial, topologia visÃ­vel, teste determinÃ­stico
+e migraÃ§Ã£o clara para Kafka real.
 
-- `<benefit>`
+Tradeoffs: benchmark nÃ£o inclui latÃªncia de rede, broker, serializaÃ§Ã£o externa,
+rebalanceamento ou persistÃªncia distribuÃ­da; isso deve ser medido separadamente
+antes de qualquer alegaÃ§Ã£o de produÃ§Ã£o.
 
-Tradeoffs:
-
-- `<cost>`
-
-Migration path:
-
-- `<how to evolve if the problem grows>`
+MigraÃ§Ã£o: configurar `KAFKA_BOOTSTRAP_SERVERS`, seguranÃ§a e tÃ³picos no adapter
+`run`; manter os contratos e adicionar testes de contrato contra a implantaÃ§Ã£o.

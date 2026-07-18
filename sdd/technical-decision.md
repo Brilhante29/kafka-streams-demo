@@ -2,119 +2,71 @@
 
 ## Status
 
-Proposed
+Accepted
 
-## Decision Type
+## Selected options
 
-`<stack|api-style|cloud|messaging|database|library|runtime|framework>`
+- Stack: Kotlin 2.0.21 + Java 21 + Gradle Kotlin DSL.
+- API style: CLI (`demo`, `benchmark`, `run`), porque nÃ£o hÃ¡ API HTTP no claim.
+- Messaging: Kafka Streams DSL; stream/table join e state store materializada.
+- Cloud: `adapter-fake`/none in scope. Kumo fica documentado como provider local
+  futuro para portas AWS; nÃ£o hÃ¡ chamada AWS que justifique rodÃ¡-lo.
+- Runtime/database: JVM local ou imagem JRE 21; nenhum banco.
+- Libraries: Kafka Streams/test-utils, Kotlin serialization, JUnit 5, AssertJ e
+  Ktlint; cada uma expÃµe o conceito medido e mantÃ©m o Docker pequeno.
 
-## Context
+## Messaging decision
 
-Project: `<project-name>`
-Problem: `<problem to solve>`
-Portfolio program: `<program>`
-Public signal: `<GitHub/LinkedIn proficiency signal>`
-Benchmark: `<metric>`
+Kafka Ã© justificado por stream processing, estado agregado e possibilidade de
+replay/consumer groups no adaptador real. O default usa `TopologyTestDriver`,
+nÃ£o Redpanda, pois o broker nÃ£o contribui para a prova local de join/agregaÃ§Ã£o.
 
-## Selected Option
+Delivery semantics no default: processamento sÃ­ncrono do driver. No runtime
+real, Kafka Streams oferece os semÃ¢nticos configurados pelo cluster; exatamente-
+uma-vez, retries, retenÃ§Ã£o, partiÃ§Ãµes e DLQ exigem uma decisÃ£o operacional futura.
+Particionamento deve usar `customerId` como chave para preservar a ordem por
+cliente. `customer-profiles` deve ser uma KTable/compactada na implantaÃ§Ã£o real.
 
-Selected: `<option>`
+## SOLID, KISS and testability
 
-Reason:
+- SRP: eventos/polÃ­tica, topologia, Serde, benchmark e CLI tÃªm razÃµes de mudanÃ§a
+  separadas.
+- OCP/LSP: `TopologyTestDriver` e `KafkaStreams` consomem o mesmo `Topology`; a
+  polÃ­tica pura nÃ£o conhece as implementaÃ§Ãµes externas.
+- ISP/DIP: a regra de enriquecimento recebe dados concretos do contrato e o
+  acesso ao broker fica na borda de `TopologyFactory`/`run`.
+- DRY: fixtures, nomes de tÃ³picos e Serdes sÃ£o compartilhados por teste e
+  benchmark; nÃ£o hÃ¡ abstraÃ§Ã£o genÃ©rica para futuros brokers.
+- KISS/YAGNI: sem Spring, banco, microserviÃ§os, registry ou Kumo obrigatÃ³rio.
+- Law of Demeter: agregador manipula apenas o evento e seu estado direto.
 
-`<Why this option fits the problem, benchmark, and public signal.>`
+## Cloud/Kumo adapter
 
-## Decision Brain Fields
+NÃ£o hÃ¡ serviÃ§o cloud no escopo e, portanto, Kumo nÃ£o Ã© uma dependÃªncia teatral.
+Quando o pipeline precisar armazenar payloads, emitir notificaÃ§Ãµes ou guardar
+segredos, a aplicaÃ§Ã£o deverÃ¡ adicionar uma porta pequena e implementar Kumo
+local/AWS externamente, selecionando por configuraÃ§Ã£o. O domÃ­nio nÃ£o importa
+SDK AWS nem endpoint Kumo.
 
-- Stack profile: `<spring-kotlin-backend|fastapi-backend|go-backend|node-typescript-backend|angular|nextjs|python-ml|terraform>`
-- API style: `<rest-http|graphql|grpc|websocket|sse|cli>`
-- Messaging: `<none|outbox-only|rabbitmq|kafka|redis-streams|nats>`
-- Cloud mode: `<none|kumo-local-first|adapter-fake|real-cloud-required>`
-- Database/runtime: `<selection>`
-- Library policy: `<selection>`
+## Rejected options
 
-## Engineering Principles
-
-Coupling boundary:
-
-`<Domain/use cases must not depend on framework, DB, broker, cloud SDK, transport, or UI.>`
-
-SOLID application:
-
-- SRP: `<how responsibilities are split>`
-- OCP: `<how behavior extends without rewriting stable policy>`
-- LSP: `<how adapters/fakes/reals stay substitutable>`
-- ISP: `<small ports/interfaces used>`
-- DIP: `<high-level policy depends on abstractions>`
-
-Simplicity:
-
-- KISS: `<simplest design that proves the claim>`
-- YAGNI: `<future abstraction intentionally not added>`
-- DRY: `<duplicated business knowledge removed without premature abstraction>`
-
-Testability evidence:
-
-- `<use case test without transport/infrastructure>`
-- `<adapter or contract test>`
-## Rejected Options
-
-| Option | Why rejected |
+| Option | Reason |
 |---|---|
-| `<option>` | `<reason>` |
-| `<option>` | `<reason>` |
+| Redpanda obrigatÃ³rio | Custo operacional e nÃ£o-determinismo no caminho padrÃ£o. |
+| RabbitMQ | SemÃ¢ntica de fila/ack nÃ£o prova stream/table join ou agregaÃ§Ã£o replayable. |
+| Kinesis | NÃ£o Ã© necessÃ¡rio e dificultaria o laboratÃ³rio local. |
+| Spring WebFlux/REST | NÃ£o existe endpoint e o benchmark Ã© de topologia, nÃ£o HTTP. |
 
-## API Contract
+## Benchmark impact
 
-Contract artifact:
+O desenho elimina broker/network overhead do baseline e mede exatamente o custo
+de processar um lote fixo dentro do driver. O JSON separa throughput do custo
+por registro (`topology_latency_*`) e registra ambiente para comparaÃ§Ã£o.
 
-`<OpenAPI|GraphQL schema|protobuf|event contract|CLI output schema|none>`
-
-GraphQL controls, when applicable:
-
-- Query complexity/depth limit: `<yes|no|not applicable>`
-- N+1 prevention: `<DataLoader/batching plan|not applicable>`
-- Field-level auth rule: `<yes|no|not applicable>`
-
-## Cloud Local-First
-
-Local provider:
-
-`<kumo|none|adapter fake>`
-
-Real provider target:
-
-`<aws|none|other>`
-
-Config switch:
-
-```txt
-CLOUD_PROVIDER=<kumo|aws|none>
-CLOUD_ENDPOINT=http://localhost:4566
-```
-
-Unsupported local behaviors:
-
-- `<behavior or none>`
-
-## Benchmark Impact
-
-Expected impact:
-
-- `<metric/result this decision should improve or clarify>`
-
-Validation command:
+Validation:
 
 ```powershell
-<command>
+gradle --no-daemon clean check
+gradle --no-daemon run --args="benchmark 1000 benchmarks/results/latest.json"
+powershell -File tools/validate-project.ps1 -SkipDocker
 ```
-
-## Operational Cost
-
-- Docker services added: `<none|kumo|postgres|redis|rabbitmq|redpanda|...>`
-- Local demo complexity: `<low|medium|high>`
-- Failure case required: `<yes|no>`
-
-## Follow-up
-
-- `<what must be revisited if benchmark fails>`

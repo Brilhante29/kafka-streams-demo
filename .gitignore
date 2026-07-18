@@ -1,8 +1,11 @@
-__pycache__/
+﻿__pycache__/
 .pytest_cache/
 .ruff_cache/
 .venv/
+.gradle/
 benchmarks/results/*.json
+!benchmarks/results/baseline.json
 dist/
 target/
 build/
+.kotlin/
