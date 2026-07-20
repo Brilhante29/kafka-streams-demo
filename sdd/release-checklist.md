@@ -1,7 +1,7 @@
-﻿- [ ] `docker build` passes in an environment with Docker daemon access.
+﻿- [x] `docker build` passes in an environment with Docker daemon access.
 - [x] `docker run` path documented.
 - [x] Benchmark command runs from clean checkout with Java/Gradle or Docker.
-- [ ] Numeric benchmark result stored under `benchmarks/results/baseline.json`.
+- [x] Numeric benchmark result stored under `benchmarks/results/baseline.json`.
 - [x] README opens with number and claim; numeric result awaits execution.
 - [x] `REFERENCES.md` exists.
 - [x] License exists.
