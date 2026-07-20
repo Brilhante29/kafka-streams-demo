@@ -2,17 +2,17 @@ id: 28
 name: kafka-streams-demo
 program:
   id: mlops-data-platform
-  narrative_fit: "Demonstra uma etapa de streaming reproduzÃ­vel para mover eventos de negÃ³cio a features agregadas com contrato e benchmark local."
+  narrative_fit: "Demonstra uma etapa de streaming reproduzÃƒÂ­vel para mover eventos de negÃƒÂ³cio a features agregadas com contrato e benchmark local."
   shared_assets:
     - streaming benchmark JSON
     - deterministic topology fixture
-status: benchmarked
+status: published
 claim: processamento streaming
 stack: [kotlin, java21, gradle, kafka-streams, junit5, docker, redpanda-optional]
 language_profile:
   primary: spring-kotlin-backend
   secondary: []
-  reason: "Kotlin/JVM e testes de infraestrutura sÃ£o o sinal pÃºblico pedido; a topologia permanece um app de linha de comando sem Spring para manter o nÃºcleo mÃ­nimo."
+  reason: "Kotlin/JVM e testes de infraestrutura sÃƒÂ£o o sinal pÃƒÂºblico pedido; a topologia permanece um app de linha de comando sem Spring para manter o nÃƒÂºcleo mÃƒÂ­nimo."
 decision_brain:
   agentic_spec:
     source: .portfolio/decision-brain/agentic-spec-governance.yaml
@@ -47,19 +47,19 @@ decision_brain:
     local_provider: kumo
     real_provider_target: aws
     emulated_services: []
-    adapter_rule: "Sem integraÃ§Ã£o cloud neste escopo; futuras portas mantÃªm SDK fora do domÃ­nio."
+    adapter_rule: "Sem integraÃƒÂ§ÃƒÂ£o cloud neste escopo; futuras portas mantÃƒÂªm SDK fora do domÃƒÂ­nio."
     config_switch: CLOUD_PROVIDER=kumo|aws|none
-    unsupported_behaviors: ["Kumo nÃ£o Ã© necessÃ¡rio sem serviÃ§o AWS usado pela topologia"]
+    unsupported_behaviors: ["Kumo nÃƒÂ£o ÃƒÂ© necessÃƒÂ¡rio sem serviÃƒÂ§o AWS usado pela topologia"]
   database: none
-  runtime: "JVM 21, TopologyTestDriver no default; KafkaStreams.run via adapter explÃ­cito"
-  library_policy: "Kafka Streams e test-utils provam a semÃ¢ntica; Kotlin serialization mantÃ©m o contrato JSON pequeno; Ktlint fecha o gate de estilo."
+  runtime: "JVM 21, TopologyTestDriver no default; KafkaStreams.run via adapter explÃƒÂ­cito"
+  library_policy: "Kafka Streams e test-utils provam a semÃƒÂ¢ntica; Kotlin serialization mantÃƒÂ©m o contrato JSON pequeno; Ktlint fecha o gate de estilo."
   record_path: sdd/technical-decision.md
   rejected_options:
     - option: redpanda-no-default
-      reason: "Broker nÃ£o Ã© necessÃ¡rio para provar join/agregaÃ§Ã£o e tornaria testes e benchmark dependentes de infraestrutura."
+      reason: "Broker nÃƒÂ£o ÃƒÂ© necessÃƒÂ¡rio para provar join/agregaÃƒÂ§ÃƒÂ£o e tornaria testes e benchmark dependentes de infraestrutura."
 architecture:
   style: event-driven
-  reason: "Eventos, stream/table join, estado agregado e throughput da topologia sÃ£o o problema e a mÃ©trica."
+  reason: "Eventos, stream/table join, estado agregado e throughput da topologia sÃƒÂ£o o problema e a mÃƒÂ©trica."
   problem_forces:
     domain_complexity: low
     integration_pressure: high
@@ -70,12 +70,12 @@ architecture:
     independent_deployability: low
   dependency_rule: adapters depend inward; domain and policy do not import Kafka, cloud, Docker, or transport
   boundaries:
-    - "domain nÃ£o importa Kafka, Docker ou cloud"
-    - "infra constrÃ³i a topologia e os adaptadores de runtime"
-    - "benchmark usa o mesmo contrato atravÃ©s do TopologyTestDriver"
+    - "domain nÃƒÂ£o importa Kafka, Docker ou cloud"
+    - "infra constrÃƒÂ³i a topologia e os adaptadores de runtime"
+    - "benchmark usa o mesmo contrato atravÃƒÂ©s do TopologyTestDriver"
   rejected_alternatives:
     - style: microservices
-      reason: "Um Ãºnico fluxo nÃ£o exige deploy independente; dividir sÃ³ adicionaria custo distribuÃ­do."
+      reason: "Um ÃƒÂºnico fluxo nÃƒÂ£o exige deploy independente; dividir sÃƒÂ³ adicionaria custo distribuÃƒÂ­do."
 benchmark:
   primary_metric: messages_per_second
   unit: messages/s
