@@ -6,7 +6,7 @@ program:
   shared_assets:
     - streaming benchmark JSON
     - deterministic topology fixture
-status: implemented
+status: benchmarked
 claim: processamento streaming
 stack: [kotlin, java21, gradle, kafka-streams, junit5, docker, redpanda-optional]
 language_profile:
