@@ -76,6 +76,10 @@ architecture:
   rejected_alternatives:
     - style: microservices
       reason: "Um ÃƒÂºnico fluxo nÃƒÂ£o exige deploy independente; dividir sÃƒÂ³ adicionaria custo distribuÃƒÂ­do."
+design_system:
+  tokens: .portfolio/design-system/tokens.yaml
+  readme_components: [readme_header, benchmark_card, architecture_card, references_table]
+  diagram_required: true
 benchmark:
   primary_metric: messages_per_second
   unit: messages/s
