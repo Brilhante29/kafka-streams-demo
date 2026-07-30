@@ -24,7 +24,7 @@ class RealBrokerBenchmarkTest {
             }
         val kafka =
             KafkaContainer(
-                DockerImageName.parse(KAFKA_IMAGE),
+                DockerImageName.parse(KAFKA_IMAGE).asCompatibleSubstituteFor("apache/kafka"),
             )
 
         kafka.start()
