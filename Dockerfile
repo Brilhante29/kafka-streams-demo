@@ -19,7 +19,9 @@ FROM eclipse-temurin:${JVM_VERSION}-jre@${JRE_IMAGE_DIGEST} AS runtime
 ARG SOURCE_COMMIT=0000000000000000000000000000000000000000
 ARG DEPENDENCY_LOCK_DIGEST=sha256:0000000000000000000000000000000000000000000000000000000000000000
 
-RUN groupadd --system --gid 10001 app && \
+# The JVM is the only runtime process; the base-image service supervisor is unnecessary.
+RUN rm -f /usr/bin/pebble && \
+    groupadd --system --gid 10001 app && \
     useradd --uid 10001 --gid app --home-dir /app --no-create-home --shell /usr/sbin/nologin app
 
 WORKDIR /app
