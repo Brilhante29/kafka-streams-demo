@@ -1,18 +1,18 @@
 # Release Checklist
 
 - [x] Core topology implementation is functional.
-- [x] Unit and topology tests pass.
-- [x] Integration test sources compile and use a pinned Kafka image.
-- [x] Broker-backed Compose smoke passes with output/state invariant 1.0.
+- [x] Five unit/topology/configuration tests pass.
+- [x] Broker-backed Testcontainers integration passes with a pinned Kafka image.
+- [x] Clean Compose baseline preserves output/state invariant 1.0 in all five samples.
 - [x] Docker image is multi-stage, pinned, non-root, and read-only at runtime.
-- [x] Benchmark modes and evidence contract are implemented.
+- [x] Benchmark V2 evidence has raw samples, clean provenance, and canonical artifact digest.
 - [x] Project manifest validates against schema V2.
-- [x] Local secret fallback scan passes.
-- [ ] README, SDD, OpenSpec, and controls are fully aligned.
-- [ ] Clean full test and Testcontainers integration test pass in release environment.
-- [ ] Clean five-sample broker baseline is committed.
-- [ ] Dependency and container scans pass or exceptions are documented.
-- [ ] SPDX/CycloneDX SBOM is generated and retained as CI artifact.
-- [ ] Independent review reports no P0/P1.
-- [ ] Branch is pushed, PR is open, and GitHub Actions is green.
+- [x] Local fallback secret scan passes.
+- [x] Trivy filesystem and image scans pass for HIGH/CRITICAL without suppression.
+- [x] SPDX 2.3 SBOM is generated, retained, and license-reviewed.
+- [x] README, SDD, OpenSpec, review, and control artifacts describe the final local evidence.
+- [x] Independent review completed; P0 is zero and four technical P1 findings are resolved.
+- [x] Final structural validators pass after the evidence-documentation edit.
+- [x] Clean baseline, SBOM, reviews, and documentation are committed by this release-evidence change.
+- [ ] Publication-state P1 is closed by an open PR with observed green GitHub Actions.
 - [ ] Merge is explicitly authorized.

@@ -1,6 +1,6 @@
 # Continuity State
 
-Generated: 2026-07-30T09:22:47.5526854-03:00
+Generated: 2026-07-30T12:08:59.0453510-03:00
 Purpose: mechanical Git and worktree state for continuation. Read CURRENT_HANDOFF.md for engineering decisions.
 
 ## kafka-wrapper-hardening-v2
@@ -8,41 +8,41 @@ Purpose: mechanical Git and worktree state for continuation. Read CURRENT_HANDOF
 - Git repository: yes
 - Repository alias: kafka-wrapper-hardening-v2
 - Branch: agent/gradle-wrapper-hardening-v2
-- Head: ab9535a6f448c59b4452df440a45d7fbfbc77e31
+- Head: eede9335508b239c6c88ca105965ab67dce5eb34
 - Origin: none
-- Dirty entries at capture: 113
+- Dirty entries at capture: 26
 
 ### Working Tree
 
-    A  .aitmpl/context-card.md
-    M  .claude/skills/agent-orchestration/SKILL.md
-    M  .claude/skills/benchmark-harness/SKILL.md
-    A  .claude/skills/continuity-checkpoint/SKILL.md
-    A  .claude/skills/jvm-language-decision/SKILL.md
-    A  .claude/skills/kafka-streams/SKILL.md
-    M  .claude/skills/spring-kotlin-backend/SKILL.md
-    M  .codex/skills/agent-orchestration/SKILL.md
-    M  .codex/skills/benchmark-harness/SKILL.md
-    A  .codex/skills/continuity-checkpoint/SKILL.md
-    A  .codex/skills/jvm-language-decision/SKILL.md
-    A  .codex/skills/kafka-streams/SKILL.md
-    M  .codex/skills/spring-kotlin-backend/SKILL.md
-    M  .dockerignore
-    A  .github/dependabot.yml
-    M  .github/workflows/ci.yml
-    A  .portfolio-control/COMMAND_EVIDENCE.md
-    A  .portfolio-control/CONTINUITY_STATE.md
-    A  .portfolio-control/COST_LEDGER.md
-    M  .portfolio-control/CRITICAL_PATH.md
-    ... 93 additional entries omitted; run git status --short in this worktree.
+     M .portfolio-control/COMMAND_EVIDENCE.md
+     M .portfolio-control/CONTINUITY_STATE.md
+     M .portfolio-control/COST_LEDGER.md
+     M .portfolio-control/CRITICAL_PATH.md
+     M .portfolio-control/CURRENT_HANDOFF.md
+     M .portfolio-control/INVENTORY.md
+     M .portfolio-control/QUALITY_GATES.md
+     M .portfolio-control/REUSE_MAP.md
+     M .portfolio-control/SECURITY_GATES.md
+     M .portfolio-control/STATE.json
+     M README.md
+     M openspec/artifacts/article-draft.md
+     M openspec/artifacts/benchmark-proof.md
+     M openspec/artifacts/portfolio-impact.md
+     M openspec/artifacts/reuse-delta.md
+     M openspec/artifacts/tasks.md
+     M openspec/artifacts/verification.md
+     M openspec/artifacts/voice-check.md
+     M project.yaml
+     M sdd/agent-handoff.md
+    ... 6 additional entries omitted; run git status --short in this worktree.
 
 ### Recent Commits
 
-    ab9535a feat(kafka): add benchmark and audited validation
-    d7af1e9 chore: align project status with audited evidence
-    be4cf50 chore: Update status to published
-    158df64 feat: Implement portfolio requirements and benchmarks
-    d20827a chore(kafka): normalize workflow whitespace
+    eede933 fix(review): close release-blocking integrity gaps
+    fc94d09 fix(container): remove unused vulnerable supervisor
+    661ebf4 fix(deps): close high severity findings
+    53851a0 test(kafka): declare native image compatibility
+    454feca feat(kafka): prove broker-backed exactly-once processing
 
 ### Worktrees
 
@@ -53,12 +53,11 @@ Purpose: mechanical Git and worktree state for continuation. Read CURRENT_HANDOF
     HEAD 57d101066de3fde416129017d5425f2215dbb708
     branch refs/heads/agent/gradle-wrapper-hardening
     worktree <local-worktree-3>
-    HEAD ab9535a6f448c59b4452df440a45d7fbfbc77e31
+    HEAD eede9335508b239c6c88ca105965ab67dce5eb34
     branch refs/heads/agent/gradle-wrapper-hardening-v2
 
 ## Next Actions
 
-- Create the implementation commit after final staged validation.
-- Run the single clean release-candidate sequence from that commit.
-- Generate and validate benchmarks/results/baseline.json with five broker samples and clean provenance.
-- Run security scans, generate SBOM, perform one independent P0/P1 review, then push and open a PR without merging.
+- Verify Brilhante29/kafka-streams-demo, configure origin, and push agent/gradle-wrapper-hardening-v2.
+- Open a pull request and observe all GitHub Actions checks; do not merge without explicit authorization.
+- If CI fails, inspect the exact job log, fix only the demonstrated failure, and update the publication review finding after green CI.

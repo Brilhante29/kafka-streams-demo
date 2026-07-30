@@ -1,6 +1,6 @@
 # #28 kafka-streams-demo
 
-**Broker-backed smoke: 121.93 records/s median, 246.05 ms batch p95, output invariant 1.0.** This is 30-record dirty-tree development evidence; the clean five-sample release baseline is the only number eligible for the final portfolio post.
+**Broker-backed baseline: 4,965.35 records/s median, 267.48 ms batch p95, output invariant 1.0.** Five measured iterations crossed a real Kafka 4.3.1 broker with `exactly_once_v2`; the evidence is bound to source, image, dependency lock, workload, and its own canonical SHA-256 digest.
 
 ## 1. Overview
 
@@ -71,6 +71,7 @@ tools/          validators, scans, benchmark and continuity scripts
 - Docker Desktop or another Docker Engine with Compose v2 for broker-backed execution.
 - For host JVM execution: Java 21; Gradle is not installed globally because the repository wrapper is mandatory.
 - PowerShell 7 (`pwsh`) or Windows PowerShell 5.1 for the release benchmark script.
+- Python 3 for the cross-language canonical evidence-digest validator.
 
 No Kafka installation, cloud account, API key, or paid service is required.
 
@@ -93,12 +94,12 @@ docker build -t kafka-streams-demo:local .
 docker run --rm kafka-streams-demo:local demo
 ```
 
-Real broker smoke:
+Release broker benchmark:
 
 ```powershell
 pwsh -File tools/run-broker-benchmark.ps1 `
-  -Records 30 -Warmups 1 -Repeats 2 `
-  -OutputPath benchmarks/results/broker-smoke.json -AllowDirty
+  -Records 1000 -Warmups 1 -Repeats 5 `
+  -OutputPath benchmarks/results/baseline.json
 ```
 
 The Compose runtime starts Kafka on `127.0.0.1:19092`, waits for broker health, runs the application with a read-only root filesystem, then removes broker data and the network.
@@ -148,7 +149,20 @@ pwsh -File tools/validate-benchmark-result.ps1 `
   -ExpectedBenchmarkId real-broker-end-to-end -RequireClean
 ```
 
-Primary metric: `end_to_end_input_records_per_second`. Timing includes producing/flushing a batch, Kafka Streams processing, read-committed output consumption, and aggregate-store convergence. Every run records raw samples, workload/config digests, environment, source commit, clean-tree status, application image digest, dependency-lock digest, and comparability key.
+Primary metric: `end_to_end_input_records_per_second`. Timing includes producing/flushing a batch, Kafka Streams processing, read-committed output consumption, and aggregate-store convergence. Every run records raw samples, workload/config digests, environment, source commit, clean-tree status, application image digest, dependency-lock digest, comparability key, and a canonical artifact digest.
+
+| Evidence | Result |
+|---|---|
+| Throughput samples (records/s) | 4,122.48; 3,738.61; 4,965.35; 5,237.01; 5,308.42 |
+| Median throughput | **4,965.35 records/s** |
+| Batch latency samples (ms) | 242.57; 267.48; 201.40; 190.95; 188.38 |
+| Median / p95 batch latency | **201.40 / 267.48 ms** |
+| Output invariant | **1.0 in all five iterations** |
+| Image digest | `sha256:913190bf4f387cca93a09d66a3c7ca8969f9636223aad993462e39f21a6af61c` |
+| Evidence digest | `sha256:e81a103aed906f48e91551b7f6099f148413d0a3ff12ff84bcc7eaa46200d4fd` |
+| Comparability key | `kafka-streams-demo:real-broker-end-to-end:v1:jvm21` |
+
+The throughput population CV is 13.47% and max/min ratio is 1.42 on this short local run. The raw samples are therefore part of the claim; the median alone is not presented as a capacity SLA.
 
 Post benchmark: **"Exactly-once is not a checkbox: measuring Kotlin/Kafka Streams from producer input to committed output and materialized state."** The post compares correctness boundaries and latency distribution, not the topology-driver number against broker throughput.
 
@@ -161,6 +175,8 @@ Post benchmark: **"Exactly-once is not a checkbox: measuring Kotlin/Kafka Stream
 - `/tmp` is `noexec`; RocksDB JNI receives a smaller dedicated executable tmpfs.
 - Broker host port binds only to loopback.
 - CI uses minimal permissions, pinned action SHAs, secret/misconfiguration/dependency/image scans, and an SBOM artifact.
+- Local Trivy 0.69.3 filesystem and image scans completed with zero HIGH/CRITICAL findings and no `ignore-unfixed` or other suppression.
+- The retained SPDX 2.3 SBOM inventories 158 packages; 25 `NOASSERTION` license records are explicitly tracked for upstream review.
 
 Exactly-once-v2 covers Kafka read-process-write behavior, not external side effects.
 
@@ -182,16 +198,17 @@ SOLID is applied where it creates a real boundary. LSP is not claimed for a none
 
 - One local KRaft broker with replication factor one does not prove availability or horizontal scale.
 - JSON Serdes do not provide Schema Registry compatibility governance.
-- The benchmark is Docker Desktop hardware-sensitive and only comparable under the same workload/comparability key.
+- The five-sample run has 13.47% throughput CV; one warmup and local Docker Desktop scheduling limit statistical confidence.
+- Exactly-once-v2 was proved for normal broker-backed execution, not crash/restart/retry recovery or external side effects.
 - Remote interactive queries, multi-instance rebalances, authentication/TLS, DLQ ownership, and disaster recovery are production extensions.
-- The opening number remains smoke evidence until the clean release baseline is generated.
 
 ## 17. Roadmap
 
-1. Complete release-candidate scans, SBOM, clean baseline, and independent review.
-2. Publish the branch and require green GitHub Actions before merge.
-3. Add a multi-instance rebalance/restoration experiment only as a separate measured follow-up.
-4. Generalize the broker benchmark harness into `portfolio-reuse-kit` after a second streaming consumer proves reuse.
+1. Publish the evidence branch, open a PR, and require green GitHub Actions before merge.
+2. Separate the topology microbenchmark CLI dependency from the minimal runtime image.
+3. Add crash/restart/retry and multi-instance rebalance/restoration experiments as measured follow-ups.
+4. Restrict the results bind mount to the benchmark-specific Compose service.
+5. Generalize canonical evidence validation and the broker harness in `portfolio-reuse-kit` after a second consumer proves reuse.
 
 ## 18. References
 

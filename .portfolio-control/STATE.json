@@ -1,22 +1,33 @@
 {
-  "project": "kafka-streams-demo",
-  "status": "implementation",
-  "phase": "documentation-ci-hardening",
-  "last_commit": "ab9535a6f448c59b4452df440a45d7fbfbc77e31",
-  "completed_gates": [
-    "functional_topology",
-    "unit_tests",
-    "topology_benchmark_smoke",
-    "real_broker_smoke",
-    "docker_build",
-    "compose_health",
-    "manifest_v2_schema",
-    "benchmark_v2_semantics",
-    "fallback_secret_scan"
-  ],
-  "failed_gates": [],
-  "blockers": [],
-  "next_action": "Finish CI and structural validation, create implementation commit, then run the single clean release-candidate sequence.",
-  "reuse_kit_version": "1.2.0",
-  "updated_at": "2026-07-30T08:30:00-03:00"
+    "project":  "kafka-streams-demo",
+    "status":  "benchmarked",
+    "phase":  "evidence-publication",
+    "last_commit":  "eede9335508b239c6c88ca105965ab67dce5eb34",
+    "completed_gates":  [
+                            "functional_topology",
+                            "unit_tests",
+                            "real_broker_integration",
+                            "clean_real_broker_baseline",
+                            "canonical_artifact_digest",
+                            "docker_build",
+                            "non_root_runtime",
+                            "compose_health",
+                            "manifest_v2_schema",
+                            "benchmark_v2_semantics",
+                            "fallback_secret_scan",
+                            "trivy_filesystem_scan",
+                            "trivy_image_scan",
+                            "spdx_sbom",
+                            "independent_review_technical_p1_resolved",
+                            "final_structural_validation"
+                        ],
+    "failed_gates":  [
+
+                     ],
+    "blockers":  [
+                     "remote_ci_not_observed"
+                 ],
+    "next_action":  "Verify/configure the GitHub remote, push the validated branch, open a PR, and observe CI without merging.",
+    "reuse_kit_version":  "1.2.0",
+    "updated_at":  "2026-07-30T12:08:41.5873423-03:00"
 }

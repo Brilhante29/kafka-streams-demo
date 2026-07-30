@@ -1,7 +1,7 @@
 # Software Design Description
 
 Project: `#28 kafka-streams-demo`
-Status: implementation validated; release evidence pending
+Status: implementation and local release evidence validated; remote CI publication gate pending
 
 ## Context and problem
 

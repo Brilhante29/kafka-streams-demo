@@ -1,39 +1,59 @@
 # Command Evidence
 
-## Gradle incremental validation
+## JVM validation
 
-Command: `./gradlew --no-daemon ktlintFormat check compileIntegrationTestKotlin` inside pinned Temurin JDK 21.
+Command: `./gradlew --no-daemon check --rerun-tasks` inside pinned Temurin JDK 21.
 
-Result: build passed; five unit/topology/configuration tests passed; integration test source compiled. Exit code 0. Date: 2026-07-30.
+Result: five unit/topology/configuration tests passed. Exit code 0. Date: 2026-07-30.
 
-## Docker image build
+Command: `TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal ./gradlew --no-daemon integrationTest --rerun-tasks` inside Docker.
 
-Command: `docker compose -f docker-compose.real.yml build streams-app`.
+Result: broker-backed Testcontainers integration passed against digest-pinned Kafka 4.3.1. Exit code 0. Date: 2026-07-30.
 
-Result: multistage image built; Gradle clean/check/installDist passed in build stage. Image smoke digest before final commit was `sha256:4a04091d59d63fcb0c79e0f117f78d312bded60e2147728f2c0aa911f711c4a0`. Exit code 0. Date: 2026-07-30.
+## Release image and runtime
 
-## Real broker smoke
+Command: `docker compose -f docker-compose.real.yml build streams-app` as part of the release benchmark.
 
-Command: `tools/run-broker-benchmark.ps1 -Records 30 -Warmups 1 -Repeats 2 -OutputPath benchmarks/results/broker-smoke.json -AllowDirty`.
+Result: clean/check/installDist passed in the build stage; image ID `sha256:913190bf4f387cca93a09d66a3c7ca8969f9636223aad993462e39f21a6af61c`. Exit code 0. Date: 2026-07-30.
 
-Result: Kafka 4.3.1, exactly-once-v2, three partitions; median 121.92524101013193 records/s; p95 batch latency 246.052415 ms; output invariant 1.0. Exit code 0. Dirty development evidence only. Date: 2026-07-30.
+Commands: `docker run --rm --entrypoint id kafka-streams-demo:local -u` and `docker run --rm kafka-streams-demo:local demo`.
+
+Result: UID `10001` and local demo output both passed. Exit code 0. Date: 2026-07-30.
+
+## Clean real-broker baseline
+
+Command: `tools/run-broker-benchmark.ps1 -Records 1000 -Warmups 1 -Repeats 5 -OutputPath benchmarks/results/baseline.json`.
+
+Result: Kafka 4.3.1, `exactly_once_v2`, three partitions. Throughput samples: 4122.476926115315, 3738.606587079359, 4965.3503453386265, 5237.007723565175, 5308.418391934937 records/s. Median: 4965.3503453386265 records/s. Batch-latency samples: 242.572613, 267.479334, 201.395658, 190.948735, 188.380027 ms; median 201.395658 ms; p95 267.479334 ms. Invariant ratio 1.0 in all five runs. Exit code 0. Date: 2026-07-30.
+
+Provenance: source `eede9335508b239c6c88ca105965ab67dce5eb34`, clean tree true, image digest `sha256:913190bf4f387cca93a09d66a3c7ca8969f9636223aad993462e39f21a6af61c`, lock digest `sha256:cc32026725b8b8e31a8b3b6ea6eb159772d9a29a089ad6cf4ef37360249970f6`, artifact digest `sha256:e81a103aed906f48e91551b7f6099f148413d0a3ff12ff84bcc7eaa46200d4fd`.
 
 ## Benchmark validation
 
-Command: `tools/validate-benchmark-result.ps1 -Path benchmarks/results/broker-smoke.json -ExpectedBenchmarkId real-broker-end-to-end`.
+Command: `tools/validate-benchmark-result.ps1 -Path benchmarks/results/baseline.json -ExpectedBenchmarkId real-broker-end-to-end -RequireClean`.
 
-Result: schema version, workload, samples, metrics, invariants, environment, and provenance semantics passed. Exit code 0. Date: 2026-07-30.
+Result: V2 schema, canonical artifact digest, workload, raw samples, broker mode, exactly-once guarantee, partition count, invariants, environment, and provenance passed. A cross-language tamper check rejected a modified metric. Exit code 0. Date: 2026-07-30.
 
-## Manifest schema
+## Security scans
 
-Command: Python `jsonschema.Draft202012Validator(...).validate(project.yaml)`.
+Command: digest-pinned Trivy 0.69.3 `fs --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --exit-code 1 /repo`.
 
-Result: manifest V2 passed the vendored project schema. Exit code 0. Date: 2026-07-30.
+Result: Gradle vulnerabilities 0; Dockerfile misconfigurations 0; no secret finding. No `ignore-unfixed` or suppression was used. Exit code 0. Date: 2026-07-30.
 
-## Secret fallback
+Command: digest-pinned Trivy 0.69.3 `image --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --exit-code 1 kafka-streams-demo:local`.
 
-Command: `tools/scan-secrets.ps1`.
+Result: scan container exited 0. No `ignore-unfixed` or suppression was used. The parent shell timeout did not terminate the container; `docker wait` captured the final zero exit. Date: 2026-07-30.
 
-Result: 159 candidate files scanned; no configured credential pattern found. Exit code 0. Date: 2026-07-30.
+## SBOM
 
-Full release commands and logs remain pending and will be recorded once, after the implementation commit is clean.
+Command: digest-pinned Trivy 0.69.3 image scan with `--format spdx-json`.
+
+Result: SPDX 2.3, 158 packages, SHA-256 `5653a530a575798d907aa42d9bdc2fc889d9b8f00167014271aa89f68665496f`. Twenty-five upstream package license fields are `NOASSERTION` and are recorded in `evidence/SBOM_REVIEW.md`. Exit code 0. Date: 2026-07-30.
+
+## Final structural and document gates
+
+Commands: `tools/validate-project.ps1`, `tools/validate-gradle-project.ps1 -SkipBuild`, clean benchmark validation, `tools/scan-secrets.ps1`, `docker compose -f docker-compose.real.yml config --quiet`, Python JSON/YAML parsing, README section count, stale-version/placeholder/mojibake/domain-leak/scan-suppression/trailing-whitespace searches, and `git diff --check`.
+
+Result: all passed. Secret scan covered 182 candidate files; 27 JSON and 40 YAML files parsed; README has exactly 19 numbered sections; forbidden searches and diff check returned no finding. The first full validator attempt exposed three renamed mandatory reuse-gate clauses; the clauses were restored and the complete validator then passed. Date: 2026-07-30.
+
+Remote GitHub Actions evidence remains pending.

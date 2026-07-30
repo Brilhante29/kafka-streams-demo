@@ -8,7 +8,7 @@ program:
     - benchmark-result-v2 contract
     - deterministic event fixtures
     - Kafka Streams decision profile
-status: implemented
+status: benchmarked
 claim: "Processes purchases through a stateful stream-table join and customer aggregation with reproducible broker-backed evidence."
 stack:
   - kotlin
@@ -29,7 +29,7 @@ jvm:
   toolchain_version: 21
   gradle_wrapper_version: "9.3.0"
   wrapper_distribution_sha256: "0d585f69da091fc5b2beced877feab55a3064d43b8a1d46aeb07996b0915e0e0"
-  interoperability_boundary: "Serializable domain records remain free of Kafka, Docker, and framework imports."
+  interoperability_boundary: "Domain records remain free of serialization, Kafka, Docker, and framework imports; infrastructure owns wire DTO mapping."
   benchmark_effect: "The JVM, dependency lock, container images, and fixture seed are fixed in every evidence record."
   rejected_alternatives:
     - option: java-spring
@@ -52,7 +52,7 @@ messaging_decision:
     processing_mode: kafka-streams
     key_strategy: customerId
     repartition_strategy: "Purchases keep customerId as the key; enriched records are re-keyed before the customer aggregate."
-    serde_contract: "Versioned Kotlin serialization JSON with deterministic fixtures."
+    serde_contract: "Versioned JSON wire DTOs map to framework-free domain records at the infrastructure boundary."
     topology: "purchases joins customer-profiles, emits enriched-purchases, and aggregates customer-summaries."
     state_stores:
       - customer-profile-store
@@ -149,7 +149,7 @@ benchmark:
   unit: records/s
   command: "pwsh -File tools/run-broker-benchmark.ps1 -Records 1000 -Warmups 1 -Repeats 5 -OutputPath benchmarks/results/baseline.json"
   result_path: benchmarks/results/baseline.json
-  evidence_status: pending
+  evidence_status: current
 release:
   docker: "docker build -t kafka-streams-demo:local . && docker run --rm kafka-streams-demo:local demo"
   no_secret_default_path: true
