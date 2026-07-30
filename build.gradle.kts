@@ -29,17 +29,18 @@ configurations[integrationTest.implementationConfigurationName].extendsFrom(conf
 configurations[integrationTest.runtimeOnlyConfigurationName].extendsFrom(configurations.testRuntimeOnly.get())
 
 dependencies {
+    implementation(platform("com.fasterxml.jackson:jackson-bom:2.21.4"))
     implementation("org.apache.kafka:kafka-streams:4.3.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     implementation("org.slf4j:slf4j-simple:2.0.16")
 
     testImplementation(kotlin("test"))
     implementation("org.apache.kafka:kafka-streams-test-utils:4.3.1")
-    testImplementation("org.assertj:assertj-core:3.26.3")
+    testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
 
     add(integrationTest.implementationConfigurationName, "org.testcontainers:testcontainers-kafka:2.0.5")
-    add(integrationTest.implementationConfigurationName, "org.assertj:assertj-core:3.26.3")
+    add(integrationTest.implementationConfigurationName, "org.assertj:assertj-core:3.27.7")
     add(integrationTest.implementationConfigurationName, "org.junit.jupiter:junit-jupiter:5.11.3")
 }
 
