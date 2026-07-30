@@ -45,6 +45,9 @@ if (-not (Test-Path -LiteralPath $lockPath -PathType Leaf)) {
 $lockDigest = "sha256:" + (Get-FileHash -LiteralPath $lockPath -Algorithm SHA256).Hash.ToLowerInvariant()
 $relativeOutput = $output.Substring($resultsRoot.Length + 1).Replace([IO.Path]::DirectorySeparatorChar, [char]47)
 $containerOutput = "/app/benchmarks/results/$relativeOutput"
+$outputExisted = [IO.File]::Exists($output)
+$benchmarkCompleted = $false
+$runningOnWindows = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
 
 $previous = @{
   SOURCE_COMMIT = $env:SOURCE_COMMIT
@@ -56,6 +59,15 @@ $previous = @{
 }
 
 try {
+  [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($output)) | Out-Null
+  if (-not $outputExisted) {
+    [IO.File]::WriteAllText($output, "")
+  }
+  if (-not $runningOnWindows) {
+    & chmod 0666 -- $output
+    if ($LASTEXITCODE -ne 0) { throw "Cannot grant the container write access to $output" }
+  }
+
   $env:SOURCE_COMMIT = $sourceCommit
   $env:DEPENDENCY_LOCK_DIGEST = $lockDigest
   $env:EVIDENCE_CLEAN_TREE = $cleanTree.ToString().ToLowerInvariant()
@@ -78,6 +90,7 @@ try {
       "compose", "-f", "docker-compose.real.yml", "run", "--rm", "streams-app",
       "broker-benchmark", $Records.ToString(), $Warmups.ToString(), $Repeats.ToString(), $containerOutput
     )
+    $benchmarkCompleted = $true
   } finally {
     & docker compose -f docker-compose.real.yml down --volumes --remove-orphans
     Pop-Location
@@ -89,6 +102,13 @@ try {
   $env:EVIDENCE_IMAGE_DIGEST = $previous.EVIDENCE_IMAGE_DIGEST
   $env:EVIDENCE_PRODUCER = $previous.EVIDENCE_PRODUCER
   $env:CI_RUN_URL = $previous.CI_RUN_URL
+  if (-not $runningOnWindows -and [IO.File]::Exists($output)) {
+    & chmod 0644 -- $output | Out-Null
+    $global:LASTEXITCODE = 0
+  }
+  if (-not $benchmarkCompleted -and -not $outputExisted -and [IO.File]::Exists($output)) {
+    [IO.File]::Delete($output)
+  }
 }
 
 Write-Host "broker_evidence=$output"
