@@ -271,8 +271,8 @@ if (-not $SkipBuild -and $failures.Count -eq 0) {
   if (-not $java) {
     Add-Failure "Java is required to execute the Gradle Wrapper; use -SkipBuild only for structural audits"
   } else {
-    $isWindows = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
-    $wrapper = if ($isWindows) { Join-Path $root "gradlew.bat" } else { Join-Path $root "gradlew" }
+    $runningOnWindows = [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
+    $wrapper = if ($runningOnWindows) { Join-Path $root "gradlew.bat" } else { Join-Path $root "gradlew" }
     Push-Location -LiteralPath $root
     try {
       & $wrapper --no-daemon clean check
