@@ -3,7 +3,7 @@ package com.portfolio.streaming.benchmark
 import com.portfolio.streaming.domain.CustomerProfile
 import com.portfolio.streaming.domain.CustomerSummary
 import com.portfolio.streaming.domain.PurchaseEvent
-import com.portfolio.streaming.infra.JsonSerde
+import com.portfolio.streaming.infra.DomainJsonSerdes
 import com.portfolio.streaming.infra.TopologyFactory
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -81,8 +81,8 @@ object RealBrokerBenchmarkRunner {
 
         val producer = producer(bootstrapServers)
         val consumer = consumer(bootstrapServers)
-        val profileSerializer = JsonSerde(CustomerProfile.serializer()).serializer()
-        val purchaseSerializer = JsonSerde(PurchaseEvent.serializer()).serializer()
+        val profileSerializer = DomainJsonSerdes.customerProfile().serializer()
+        val purchaseSerializer = DomainJsonSerdes.purchaseEvent().serializer()
         val startedAt = Instant.now()
         val executionStart = System.nanoTime()
 

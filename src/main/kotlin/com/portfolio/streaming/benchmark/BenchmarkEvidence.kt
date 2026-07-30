@@ -4,6 +4,11 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.encodeToJsonElement
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
@@ -88,6 +93,7 @@ data class BenchmarkReportV2(
 )
 
 object BenchmarkEvidence {
+    private val emptyArtifactDigest = "sha256:" + "0".repeat(64)
     private val json =
         Json {
             prettyPrint = true
@@ -114,40 +120,50 @@ object BenchmarkEvidence {
                 environment.toSortedMap(),
             ).joinToString("|")
 
-        return BenchmarkReportV2(
-            runId = UUID.randomUUID().toString(),
-            project = "kafka-streams-demo",
-            benchmarkId = benchmarkId,
-            workload =
-                BenchmarkWorkloadV2(
-                    version = "1",
-                    fixtureDigest = sha256(Fixtures.fixtureDescriptor(recordCount)),
-                    configDigest = sha256(config),
-                    warmupIterations = warmupIterations,
-                    measuredIterations = measuredIterations,
-                    concurrency = 1,
-                ),
-            metrics = metrics,
-            execution =
-                BenchmarkExecutionV2(
-                    command = System.getProperty("sun.java.command", benchmarkId),
-                    startedAt = startedAt.toString(),
-                    durationSeconds = elapsedNanos / 1_000_000_000.0,
-                    exitCode = 0,
-                    repeat = measuredIterations,
-                ),
-            environment =
-                mapOf(
-                    "runtime" to "Java ${System.getProperty("java.version", "unknown")} / Kotlin ${KotlinVersion.CURRENT}",
-                    "architecture" to System.getProperty("os.arch", "unknown"),
-                    "hardware_class" to (
-                        System.getenv("HARDWARE_CLASS")
-                            ?: "${Runtime.getRuntime().availableProcessors()}cpu"
+        val unsigned =
+            BenchmarkReportV2(
+                runId = UUID.randomUUID().toString(),
+                project = "kafka-streams-demo",
+                benchmarkId = benchmarkId,
+                workload =
+                    BenchmarkWorkloadV2(
+                        version = "1",
+                        fixtureDigest = sha256(Fixtures.fixtureDescriptor(recordCount)),
+                        configDigest = sha256(config),
+                        warmupIterations = warmupIterations,
+                        measuredIterations = measuredIterations,
+                        concurrency = 1,
                     ),
-                    "os" to System.getProperty("os.name", "unknown"),
-                ) + environment,
-            provenance = provenance(benchmarkId, config),
-            comparabilityKey = "kafka-streams-demo:$benchmarkId:v1:jvm21",
+                metrics = metrics,
+                execution =
+                    BenchmarkExecutionV2(
+                        command = System.getProperty("sun.java.command", benchmarkId),
+                        startedAt = startedAt.toString(),
+                        durationSeconds = elapsedNanos / 1_000_000_000.0,
+                        exitCode = 0,
+                        repeat = measuredIterations,
+                    ),
+                environment =
+                    mapOf(
+                        "runtime" to (
+                            "Java " + System.getProperty("java.version", "unknown") +
+                                " / Kotlin " + KotlinVersion.CURRENT
+                        ),
+                        "architecture" to System.getProperty("os.arch", "unknown"),
+                        "hardware_class" to (
+                            System.getenv("HARDWARE_CLASS")
+                                ?: Runtime.getRuntime().availableProcessors().toString() + "cpu"
+                        ),
+                        "os" to System.getProperty("os.name", "unknown"),
+                    ) + environment,
+                provenance = provenance(),
+                comparabilityKey = "kafka-streams-demo:" + benchmarkId + ":v1:jvm21",
+            )
+        return unsigned.copy(
+            provenance =
+                unsigned.provenance.copy(
+                    artifactDigest = artifactDigest(unsigned),
+                ),
         )
     }
 
@@ -155,9 +171,20 @@ object BenchmarkEvidence {
         report: BenchmarkReportV2,
         outputPath: Path,
     ) {
+        check(verifyArtifactDigest(report)) { "benchmark artifact digest is inconsistent" }
         outputPath.parent?.createDirectories()
         Files.writeString(outputPath, json.encodeToString(report) + System.lineSeparator())
     }
+
+    fun artifactDigest(report: BenchmarkReportV2): String {
+        val unsigned =
+            report.copy(
+                provenance = report.provenance.copy(artifactDigest = emptyArtifactDigest),
+            )
+        return sha256(canonicalJson(json.encodeToJsonElement(unsigned)))
+    }
+
+    fun verifyArtifactDigest(report: BenchmarkReportV2): Boolean = report.provenance.artifactDigest == artifactDigest(report)
 
     fun percentile(
         values: List<Double>,
@@ -176,10 +203,22 @@ object BenchmarkEvidence {
         return "sha256:" + digest.joinToString("") { "%02x".format(it) }
     }
 
-    private fun provenance(
-        benchmarkId: String,
-        config: String,
-    ): BenchmarkProvenanceV2 {
+    private fun canonicalJson(element: JsonElement): String =
+        when (element) {
+            is JsonObject ->
+                element.entries
+                    .sortedBy { it.key }
+                    .joinToString(prefix = "{", postfix = "}", separator = ",") { (key, value) ->
+                        JsonPrimitive(key).toString() + ":" + canonicalJson(value)
+                    }
+            is JsonArray ->
+                element.joinToString(prefix = "[", postfix = "]", separator = ",") { value ->
+                    canonicalJson(value)
+                }
+            else -> element.toString()
+        }
+
+    private fun provenance(): BenchmarkProvenanceV2 {
         val imageRef = System.getenv("EVIDENCE_IMAGE_REF") ?: "local-jvm"
         val sourceCommit =
             System
@@ -201,7 +240,7 @@ object BenchmarkEvidence {
                         sha256(Files.readString(Path.of("gradle.lockfile")))
                     }.getOrElse { sha256("gradle.lockfile-unavailable") },
             producer = System.getenv("EVIDENCE_PRODUCER") ?: "local",
-            artifactDigest = sha256("$benchmarkId|$config"),
+            artifactDigest = emptyArtifactDigest,
             ciRunUrl = System.getenv("CI_RUN_URL"),
         )
     }

@@ -89,6 +89,18 @@ foreach ($name in @('runtime','architecture','hardware_class')) {
   Require-Property $evidence.environment $name 'environment'
   if ([string]::IsNullOrWhiteSpace([string]$evidence.environment.$name)) { Fail "environment.$name must not be blank" }
 }
+if ([string]$evidence.benchmark_id -eq 'real-broker-end-to-end') {
+  if ([string]$evidence.environment.mode -ne 'real-broker') { Fail 'real broker evidence must set environment.mode=real-broker' }
+  if ([string]$evidence.environment.processing_guarantee -ne 'exactly_once_v2') { Fail 'real broker evidence must use exactly_once_v2' }
+  if ([string]$evidence.environment.partitions -ne '3') { Fail 'real broker evidence must use three partitions' }
+  if ([string]$evidence.environment.broker -notmatch '^apache/kafka-native:4\.3\.1@sha256:[0-9a-f]{64}$') {
+    Fail 'real broker evidence must identify the digest-pinned Kafka 4.3.1 image'
+  }
+  $latencyMetric = @($metrics | Where-Object { $_.name -eq 'end_to_end_batch_latency_ms' })
+  if ($latencyMetric.Count -ne 1 -or [double]$latencyMetric[0].value -le 0) {
+    Fail 'real broker evidence must contain one positive end_to_end_batch_latency_ms metric'
+  }
+}
 
 foreach ($name in @('source_commit','clean_tree','image_ref','image_digest','dependency_lock_digest','producer','artifact_digest')) {
   Require-Property $evidence.provenance $name 'provenance'
@@ -97,6 +109,15 @@ if ([string]$evidence.provenance.source_commit -notmatch '^[0-9a-f]{40}$') { Fai
 Require-Digest ([string]$evidence.provenance.image_digest) 'provenance.image_digest'
 Require-Digest ([string]$evidence.provenance.dependency_lock_digest) 'provenance.dependency_lock_digest'
 Require-Digest ([string]$evidence.provenance.artifact_digest) 'provenance.artifact_digest'
+$pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+if (-not $pythonCommand) { Fail 'Python is required to verify provenance.artifact_digest' }
+$integrityScript = "import hashlib,json,pathlib,sys; data=json.loads(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8')); expected=data['provenance']['artifact_digest']; data['provenance']['artifact_digest']='sha256:'+'0'*64; payload=json.dumps(data,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False); actual='sha256:'+hashlib.sha256(payload.encode('utf-8')).hexdigest(); sys.exit(0 if expected==actual else f'expected={expected} actual={actual}')"
+$integrityOutput = @(& python -c $integrityScript $resolved 2>&1)
+$integrityExit = $LASTEXITCODE
+$global:LASTEXITCODE = 0
+if ($integrityExit -ne 0) {
+  Fail "provenance.artifact_digest does not cover the canonical evidence payload: $($integrityOutput -join ' ')"
+}
 if (@('local','github-actions','other-ci') -notcontains [string]$evidence.provenance.producer) { Fail 'producer is invalid' }
 if ($RequireClean) {
   if (-not [bool]$evidence.provenance.clean_tree) { Fail 'clean_tree must be true for release evidence' }

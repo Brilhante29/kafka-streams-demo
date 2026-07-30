@@ -116,7 +116,6 @@ jobs:
           scanners: vuln,secret,misconfig
           format: table
           exit-code: "1"
-          ignore-unfixed: true
           severity: HIGH,CRITICAL
 
       - name: Scan application image
@@ -126,7 +125,6 @@ jobs:
           scanners: vuln,secret,misconfig
           format: table
           exit-code: "1"
-          ignore-unfixed: true
           severity: HIGH,CRITICAL
 
       - name: Generate SPDX JSON SBOM

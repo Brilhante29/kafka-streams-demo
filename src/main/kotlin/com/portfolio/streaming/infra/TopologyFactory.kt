@@ -2,9 +2,7 @@ package com.portfolio.streaming.infra
 
 import com.portfolio.streaming.domain.CustomerProfile
 import com.portfolio.streaming.domain.CustomerSummary
-import com.portfolio.streaming.domain.EnrichedPurchase
 import com.portfolio.streaming.domain.EnrichmentPolicy
-import com.portfolio.streaming.domain.PurchaseEvent
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.common.utils.Bytes
 import org.apache.kafka.streams.StreamsBuilder
@@ -28,10 +26,10 @@ object TopologyFactory {
 
     fun build(): Topology {
         val builder = StreamsBuilder()
-        val purchaseSerde = JsonSerde(PurchaseEvent.serializer())
-        val profileSerde = JsonSerde(CustomerProfile.serializer())
-        val enrichedSerde = JsonSerde(EnrichedPurchase.serializer())
-        val summarySerde = JsonSerde(CustomerSummary.serializer())
+        val purchaseSerde = DomainJsonSerdes.purchaseEvent()
+        val profileSerde = DomainJsonSerdes.customerProfile()
+        val enrichedSerde = DomainJsonSerdes.enrichedPurchase()
+        val summarySerde = DomainJsonSerdes.customerSummary()
 
         val profiles =
             builder.table(

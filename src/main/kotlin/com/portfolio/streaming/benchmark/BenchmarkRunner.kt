@@ -1,10 +1,8 @@
 package com.portfolio.streaming.benchmark
 
 import com.portfolio.streaming.domain.CustomerProfile
-import com.portfolio.streaming.domain.CustomerSummary
-import com.portfolio.streaming.domain.EnrichedPurchase
 import com.portfolio.streaming.domain.PurchaseEvent
-import com.portfolio.streaming.infra.JsonSerde
+import com.portfolio.streaming.infra.DomainJsonSerdes
 import com.portfolio.streaming.infra.TopologyFactory
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.TopologyTestDriver
@@ -123,10 +121,10 @@ object TopologyBenchmarkRunner {
         recordCount: Int,
         iterationId: String,
     ): TopologyMeasurement {
-        val purchaseSerde = JsonSerde(PurchaseEvent.serializer())
-        val profileSerde = JsonSerde(CustomerProfile.serializer())
-        val enrichedSerde = JsonSerde(EnrichedPurchase.serializer())
-        val summarySerde = JsonSerde(CustomerSummary.serializer())
+        val purchaseSerde = DomainJsonSerdes.purchaseEvent()
+        val profileSerde = DomainJsonSerdes.customerProfile()
+        val enrichedSerde = DomainJsonSerdes.enrichedPurchase()
+        val summarySerde = DomainJsonSerdes.customerSummary()
         val driver =
             TopologyTestDriver(
                 TopologyFactory.build(),
