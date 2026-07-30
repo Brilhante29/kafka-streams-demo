@@ -13,5 +13,6 @@
 - [x] Independent read-only review completed; four technical P1 findings are resolved in `eede933`.
 - [x] Final project/Gradle/document validators pass after evidence documentation edits.
 - [x] Baseline, SBOM, review, and aligned documentation are committed by this release-evidence change.
-- [ ] Publication-state P1 is resolved by an open PR with observed green GitHub Actions.
+- [x] Manual GitHub Actions run 30557441814 is green for quality, broker smoke, security scans, and SBOM upload.
+- [ ] Publication-state P1 is resolved by conflict-free PR CI including dependency review.
 - [ ] Publication/merge is explicitly authorized.

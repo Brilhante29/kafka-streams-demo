@@ -13,7 +13,13 @@ Verified locally on 2026-07-30:
 - SPDX 2.3 SBOM contains 158 packages and has a retained license review.
 - Independent read-only review reports P0 0; four technical P1 findings are resolved in `eede933`.
 
+Remote evidence:
+
+- Manual GitHub Actions run 30557441814 is green for JVM/contracts/tests and broker/image-security/SBOM jobs on commit 7e906b0.
+- SBOM artifact 8765516776 is retained until 2026-08-13.
+- Three demonstrated cross-platform CI defects were fixed by commits 43a2bc0, 444c784, and 7e906b0.
+
 Pending publication evidence:
 
-- GitHub PR dependency review, CI jobs, and uploaded SBOM artifact.
+- Pull-request-triggered CI and dependency review on conflict-free base ~main~.
 - Explicit merge authorization.

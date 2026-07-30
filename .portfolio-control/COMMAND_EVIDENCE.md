@@ -57,3 +57,14 @@ Commands: `tools/validate-project.ps1`, `tools/validate-gradle-project.ps1 -Skip
 Result: all passed. Secret scan covered 182 candidate files; 27 JSON and 40 YAML files parsed; README has exactly 19 numbered sections; forbidden searches and diff check returned no finding. The first full validator attempt exposed three renamed mandatory reuse-gate clauses; the clauses were restored and the complete validator then passed. Date: 2026-07-30.
 
 Remote GitHub Actions evidence remains pending.
+## Remote CI convergence
+
+PR: https://github.com/Brilhante29/kafka-streams-demo/pull/1, draft, never merged automatically.
+
+- Run `30555827379` on `2d6a1a5`: JVM/integration and benchmark evidence passed; repository contracts failed because `$isWindows` collided with the read-only PowerShell 7 `$IsWindows` constant.
+- Run `30556208061` on `43a2bc0`: repository contracts passed; fallback secret scan failed because provider-based `Get-Item` could not inspect Linux dotfiles.
+- Run `30556641635` on `444c784`: quality job passed; broker smoke failed because UID 10001 could not create the output file in a runner-owned bind directory.
+- Run `30557441814` on `7e906b0`: JVM/contracts/tests and broker smoke/image security/SBOM jobs all passed. Trivy filesystem/image scans and non-root runtime checks passed; SBOM upload succeeded.
+- Artifact: `kafka-streams-demo-sbom`, ID `8765516776`, archive digest `sha256:0b9b46f1f60c6b46f3a0eba981af066da7f5bece5a93107facb8f21bec68be0f`, expires 2026-08-13.
+
+Dependency review was skipped in manual dispatches by workflow design. A conflict-free `main` was created at audited ancestor `ab9535a` and PR #1 was retargeted without merging; the next synchronization commit must prove the actual `pull_request` event.

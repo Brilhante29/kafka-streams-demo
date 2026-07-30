@@ -19,15 +19,19 @@
                             "trivy_image_scan",
                             "spdx_sbom",
                             "independent_review_technical_p1_resolved",
-                            "final_structural_validation"
+                            "final_structural_validation",
+                            "manual_ci_quality_green",
+                            "manual_ci_security_green",
+                            "ci_sbom_artifact"
                         ],
     "failed_gates":  [
 
                      ],
     "blockers":  [
-                     "remote_ci_not_observed"
+                     "pull_request_ci_not_observed",
+                     "dependency_review_not_observed"
                  ],
-    "next_action":  "Verify/configure the GitHub remote, push the validated branch, open a PR, and observe CI without merging.",
+    "next_action":  "Push the remote-evidence documentation commit to trigger pull_request CI against main; observe all jobs without merging.",
     "reuse_kit_version":  "1.2.0",
-    "updated_at":  "2026-07-30T12:08:41.5873423-03:00"
+    "updated_at":  "2026-07-30T12:57:26.9964853-03:00"
 }

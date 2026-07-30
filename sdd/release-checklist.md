@@ -14,5 +14,6 @@
 - [x] Independent review completed; P0 is zero and four technical P1 findings are resolved.
 - [x] Final structural validators pass after the evidence-documentation edit.
 - [x] Clean baseline, SBOM, reviews, and documentation are committed by this release-evidence change.
-- [ ] Publication-state P1 is closed by an open PR with observed green GitHub Actions.
+- [x] Manual GitHub Actions run 30557441814 is green for all applicable jobs and retains the SBOM artifact.
+- [ ] Publication-state P1 is closed by conflict-free PR CI including dependency review.
 - [ ] Merge is explicitly authorized.

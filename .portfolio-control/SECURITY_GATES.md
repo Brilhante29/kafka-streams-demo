@@ -15,6 +15,6 @@
 - [x] SPDX 2.3 JSON SBOM is retained locally: 158 packages, SHA-256 `5653a530a575798d907aa42d9bdc2fc889d9b8f00167014271aa89f68665496f`.
 - [x] License inventory review records 25 upstream `NOASSERTION` entries without treating the project MIT license as a dependency license.
 - [ ] GitHub dependency review passes on the PR.
-- [ ] CI uploads the SBOM artifact from the published commit.
+- [x] Manual CI run 30557441814 uploaded SBOM artifact 8765516776 from published commit 7e906b0.
 
 No vulnerability exception is active. A future exception requires CVE, affected surface, compensating control, owner, and expiry.
