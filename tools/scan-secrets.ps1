@@ -29,8 +29,9 @@ foreach ($relative in $files) {
   $normalized = $relative.Replace([IO.Path]::DirectorySeparatorChar, [char]47)
   if ($excluded -contains $normalized) { continue }
   $path = Join-Path $root $relative
-  if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { continue }
-  if ((Get-Item -LiteralPath $path).Length -gt 2MB) { continue }
+  $file = [System.IO.FileInfo]::new($path)
+  if (-not $file.Exists) { continue }
+  if ($file.Length -gt 2MB) { continue }
   $content = Get-Content -Raw -LiteralPath $path -ErrorAction SilentlyContinue
   if ($null -eq $content) { continue }
   foreach ($pattern in $patterns) {
