@@ -1,16 +1,17 @@
 # Quality Gates: #28 kafka-streams-demo
 
-Completion requires evidence, not intent.
-
-- [ ] README opens with `#28 <name>` and reports the current benchmark number.
-- [ ] `project.yaml` names the problem, architecture, stack, primary metric, and result path.
-- [ ] SDD and OpenSpec artifacts agree with the implementation.
-- [ ] Domain logic is isolated from transport, persistence, broker, provider, and vendor details.
-- [ ] SOLID, DRY, KISS, YAGNI, and Law of Demeter review has no unexplained exception.
-- [ ] Tests cover the contract and the failure paths that affect the claim.
-- [ ] Docker runs the documented default path from a clean checkout.
-- [ ] CI runs the same meaningful checks without mutable dependencies or secrets.
-- [ ] Benchmark writes valid JSON under `benchmarks/results/` and can be repeated.
-- [ ] README, benchmark JSON, and `project.yaml` report the same primary metric.
-- [ ] Reuse review records every kit improvement, backlog item, or rejected duplication.
-- [ ] Independent review found no blocker and publication has not happened before this gate.
+- [x] Functional stream-table join and aggregate exist.
+- [x] Domain is independent from Kafka/framework/runtime imports.
+- [x] Unit and topology tests pass.
+- [x] Real broker smoke passes with output/state invariant 1.0.
+- [x] Gradle wrapper, toolchain, lockfile, Docker, and Compose are reproducible.
+- [x] Manifest V2 validates and names the real-broker primary metric.
+- [x] README has 19 numbered sections and labels smoke vs release evidence.
+- [x] SDD, ADRs, OpenSpec, AITmpl, and reuse manifest align with implementation.
+- [ ] Host Testcontainers integration test passes in release sequence.
+- [ ] Clean five-sample baseline validates with V2 clean provenance.
+- [ ] Full project/Gradle validators pass with tracked executable wrapper.
+- [ ] Dependency/image scans and SBOM complete.
+- [ ] Independent review has no P0/P1.
+- [ ] Remote CI is observed green.
+- [ ] Publication/merge is explicitly authorized.

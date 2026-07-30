@@ -8,6 +8,7 @@ import com.portfolio.streaming.domain.PurchaseEvent
 import com.portfolio.streaming.infra.JsonSerde
 import com.portfolio.streaming.infra.TopologyFactory
 import org.apache.kafka.common.serialization.Serdes
+import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.TopologyTestDriver
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -70,6 +71,15 @@ class TopologyTest {
         } finally {
             driver.close()
         }
+    }
+
+    @Test
+    fun `real broker properties enable global error handling and exactly once`() {
+        val config = StreamsConfig(TopologyFactory.properties(realBroker = true))
+
+        assertThat(config.getBoolean("processing.exception.handler.global.enabled")).isTrue()
+        assertThat(config.getString(StreamsConfig.PROCESSING_GUARANTEE_CONFIG))
+            .isEqualTo(StreamsConfig.EXACTLY_ONCE_V2)
     }
 
     @Test

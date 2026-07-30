@@ -12,6 +12,28 @@ function Add-Failure {
   $script:failures.Add($Message)
 }
 
+$trackedFiles = @(& git -C $root ls-files --cached --others --exclude-standard 2>$null)
+$gitListExit = $LASTEXITCODE
+$global:LASTEXITCODE = 0
+if ($gitListExit -ne 0) {
+  Add-Failure "Repository must be a readable Git worktree"
+} else {
+  $forbiddenTrackedPatterns = @(
+    '(^|/)\.gradle/',
+    '(^|/)node_modules/',
+    '(^|/)(__pycache__|\.pytest_cache|\.ruff_cache)/',
+    '(^|/)\.venv/',
+    '(^|/)\.terraform/',
+    '^(target|build|dist|coverage|\.next)/'
+  )
+  $trackedBuildArtifacts = @($trackedFiles | Where-Object {
+    $normalized = $_ -replace '\\', '/'
+    $forbiddenTrackedPatterns | Where-Object { $normalized -match $_ } | Select-Object -First 1
+  })
+  if ($trackedBuildArtifacts.Count -gt 0) {
+    Add-Failure "Tracked build/cache artifacts must be removed: $($trackedBuildArtifacts -join ', ')"
+  }
+}
 function Require-File {
   param([string]$RelativePath)
   $path = Join-Path $root $RelativePath
@@ -38,6 +60,25 @@ $requiredFiles = @(
   "project.yaml",
   "REFERENCES.md",
   "AGENTS.md",
+  "CLAUDE.md",
+  ".portfolio-control/INVENTORY.md",
+  ".portfolio-control/REUSE_MAP.md",
+  ".portfolio-control/CRITICAL_PATH.md",
+  ".portfolio-control/DECISIONS.md",
+  ".portfolio-control/QUALITY_GATES.md",
+  ".portfolio-control/AGENT_HANDOFFS/README.md",
+  ".aitmpl/config.yaml",
+  "openspec/config.yaml",
+  "openspec/artifacts/intent.md",
+  "openspec/artifacts/portfolio-impact.md",
+  "openspec/artifacts/architecture-record.md",
+  "openspec/artifacts/component-pack.md",
+  "openspec/artifacts/reuse-delta.md",
+  "openspec/artifacts/benchmark-proof.md",
+  "openspec/artifacts/tasks.md",
+  "openspec/artifacts/verification.md",
+  "openspec/artifacts/article-draft.md",
+  "openspec/artifacts/voice-check.md",
   "sdd/spec.md",
   "sdd/benchmark-plan.md",
   "sdd/architecture-decision.md",
@@ -47,6 +88,113 @@ $requiredFiles = @(
 )
 foreach ($file in $requiredFiles) { Require-File $file }
 
+$contractManifestPath = Join-Path $root "contracts/manifest.json"
+if (Test-Path -LiteralPath $contractManifestPath -PathType Leaf) {
+  try {
+    $contractRoot = [System.IO.Path]::GetFullPath((Join-Path $root "contracts"))
+    $contractManifest = Get-Content -Raw -LiteralPath $contractManifestPath | ConvertFrom-Json
+    if ([int]$contractManifest.schema_version -ne 1 -or -not [string]$contractManifest.contract_set_version) {
+      Add-Failure "Contract manifest version metadata is invalid"
+    }
+    $contractAssets = @($contractManifest.assets.PSObject.Properties)
+    if ($contractAssets.Count -eq 0) {
+      Add-Failure "Contract manifest must contain at least one asset"
+    }
+    foreach ($asset in $contractAssets) {
+      $assetPath = [System.IO.Path]::GetFullPath((Join-Path $contractRoot ($asset.Name -replace '/', [System.IO.Path]::DirectorySeparatorChar)))
+      if (-not $assetPath.StartsWith($contractRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Add-Failure "Contract manifest path escapes contracts directory: $($asset.Name)"
+        continue
+      }
+      if (-not (Test-Path -LiteralPath $assetPath -PathType Leaf)) {
+        Add-Failure "Vendored contract is missing: $($asset.Name)"
+        continue
+      }
+      $actualDigest = "sha256:" + (Get-FileHash -LiteralPath $assetPath -Algorithm SHA256).Hash.ToLowerInvariant()
+      if ($actualDigest -ne [string]$asset.Value.sha256) {
+        Add-Failure "Vendored contract drift: $($asset.Name)"
+      }
+      if ((Get-Item -LiteralPath $assetPath).Length -ne [long]$asset.Value.bytes) {
+        Add-Failure "Vendored contract byte-size drift: $($asset.Name)"
+      }
+    }
+  } catch {
+    Add-Failure "Cannot validate contracts/manifest.json: $($_.Exception.Message)"
+  }
+}
+
+$readmePath = Join-Path $root "README.md"
+if (Test-Path -LiteralPath $readmePath -PathType Leaf) {
+  $readmeFirstLine = (Get-Content -LiteralPath $readmePath -TotalCount 1)
+  if ($readmeFirstLine -notmatch '^#\s*#?\d+\s+') {
+    Add-Failure "README first line must start with #<project number> <name>"
+  }
+}
+
+$manifestPath = Join-Path $root "project.yaml"
+$manifestPrimaryMetric = ""
+$manifestResultPath = ""
+if (Test-Path -LiteralPath $manifestPath -PathType Leaf) {
+  $manifestText = Get-Content -Raw -LiteralPath $manifestPath
+  if ($manifestText.Contains("`t")) {
+    Add-Failure "project.yaml must not contain tab indentation"
+  }
+
+  $requiredTopLevelKeys = @("id", "name", "program", "status", "stack", "benchmark", "release")
+  foreach ($key in $requiredTopLevelKeys) {
+    if ($manifestText -notmatch "(?m)^$([regex]::Escape($key)):\s*") {
+      Add-Failure "project.yaml is missing top-level key: $key"
+    }
+  }
+
+  foreach ($line in ($manifestText -split "`r?`n")) {
+    if ($line -match "^( +)\S" -and ($Matches[1].Length % 2) -ne 0) {
+      Add-Failure "project.yaml indentation must use multiples of two spaces"
+      break
+    }
+  }
+
+  $primaryMetricMatch = [regex]::Match($manifestText, "(?m)^\s+primary_metric:\s*([^\r\n#]+)")
+  if ($primaryMetricMatch.Success) {
+    $manifestPrimaryMetric = $primaryMetricMatch.Groups[1].Value.Trim().Trim('"').Trim("'")
+  } else {
+    Add-Failure "project.yaml is missing benchmark.primary_metric"
+  }
+
+  $resultPathMatch = [regex]::Match($manifestText, "(?m)^\s+result_path:\s*([^\r\n#]+)")
+  if ($resultPathMatch.Success) {
+    $manifestResultPath = $resultPathMatch.Groups[1].Value.Trim().Trim('"').Trim("'")
+  } else {
+    Add-Failure "project.yaml is missing benchmark.result_path"
+  }
+
+  $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+  if ($pythonCommand) {
+    & python -c "import yaml" 2>$null
+    $yamlAvailable = $LASTEXITCODE -eq 0
+    $global:LASTEXITCODE = 0
+    if ($yamlAvailable) {
+      Invoke-Checked "project YAML parsing" { python -c "import pathlib, sys, yaml; data = yaml.safe_load(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8')); assert isinstance(data, dict)" $manifestPath }
+
+      & python -c "import jsonschema, yaml" 2>$null
+      $jsonSchemaAvailable = $LASTEXITCODE -eq 0
+      $global:LASTEXITCODE = 0
+      $projectSchemaPath = Join-Path $root ".portfolio/contracts/project.schema.json"
+      if (-not (Test-Path -LiteralPath $projectSchemaPath -PathType Leaf)) {
+        $projectSchemaPath = Join-Path $root "contracts/project.schema.json"
+      }
+      if ($jsonSchemaAvailable -and (Test-Path -LiteralPath $projectSchemaPath -PathType Leaf)) {
+        Invoke-Checked "project manifest schema" {
+          python -c "import json, pathlib, sys, yaml; from jsonschema import Draft202012Validator; manifest=yaml.safe_load(pathlib.Path(sys.argv[1]).read_text(encoding='utf-8')); schema=json.loads(pathlib.Path(sys.argv[2]).read_text(encoding='utf-8')); errors=sorted(Draft202012Validator(schema).iter_errors(manifest), key=lambda e: list(e.absolute_path)); [print(f'{list(e.absolute_path)}: {e.message}', file=sys.stderr) for e in errors]; raise SystemExit(1 if errors else 0)" $manifestPath $projectSchemaPath
+        }
+      } else {
+        Add-Failure "jsonschema and the vendored project schema are required for manifest validation"
+      }
+    } else {
+      Add-Failure "PyYAML is required for project manifest validation"
+    }
+  }
+}
 $reuseReviewPath = Join-Path $root "sdd/reuse-improvement-review.md"
 if (Test-Path -LiteralPath $reuseReviewPath -PathType Leaf) {
   $reuseReview = Get-Content -Raw -LiteralPath $reuseReviewPath
@@ -77,26 +225,143 @@ if ($benchmarkFiles.Count -eq 0) {
   Add-Failure "Missing benchmark JSON under benchmarks/results"
 }
 
+if ($manifestResultPath -ne "") {
+  $primaryResultPath = $root
+  foreach ($part in ($manifestResultPath -split "[/\\]")) {
+    if ($part -ne "") {
+      $primaryResultPath = Join-Path $primaryResultPath $part
+    }
+  }
+
+  if (-not (Test-Path -LiteralPath $primaryResultPath -PathType Leaf)) {
+    Add-Failure "Manifest benchmark result does not exist: $manifestResultPath"
+  } else {
+    try {
+      $primaryResult = Get-Content -Raw -LiteralPath $primaryResultPath | ConvertFrom-Json
+      $resultMetric = ""
+      $resultValue = $null
+      if ($primaryResult.PSObject.Properties.Name -contains "metric") {
+        $resultMetric = [string]$primaryResult.metric
+        $resultValue = $primaryResult.value
+      } elseif ($primaryResult.PSObject.Properties.Name -contains "primary_metric") {
+        $resultMetric = [string]$primaryResult.primary_metric
+        $metricProperty = $primaryResult.PSObject.Properties[$resultMetric]
+        if ($null -ne $metricProperty) {
+          $resultValue = $metricProperty.Value
+        }
+      } elseif ($primaryResult.PSObject.Properties.Name -contains "metrics") {
+        $metricMatch = @($primaryResult.metrics | Where-Object {
+          [string]$_.name -eq $manifestPrimaryMetric
+        } | Select-Object -First 1)
+        if ($metricMatch.Count -eq 1) {
+          $resultMetric = [string]$metricMatch[0].name
+          $resultValue = $metricMatch[0].value
+        }
+      }
+
+      if ($resultMetric -eq "" -or $null -eq $resultValue) {
+        Add-Failure "Benchmark result must expose metric/value or primary_metric with its value"
+      } else {
+        if ($manifestPrimaryMetric -ne "" -and $resultMetric -ne $manifestPrimaryMetric) {
+          Add-Failure "Benchmark metric mismatch: project.yaml=$manifestPrimaryMetric result=$resultMetric"
+        }
+        $readmePath = Join-Path $root "README.md"
+        if (Test-Path -LiteralPath $readmePath -PathType Leaf) {
+          $readmeOpening = ((Get-Content -LiteralPath $readmePath -TotalCount 8) -join "`n").Replace(",", "")
+          $valueText = [Convert]::ToString($resultValue, [System.Globalization.CultureInfo]::InvariantCulture)
+          $roundedValueText = ([double]$resultValue).ToString("0.00", [System.Globalization.CultureInfo]::InvariantCulture)
+          if (-not $readmeOpening.Contains($valueText) -and -not $readmeOpening.Contains($roundedValueText)) {
+            Add-Failure "README opening does not include primary benchmark value: $roundedValueText (rounded)"
+          }
+        }
+      }
+    } catch {
+      Add-Failure "Cannot read primary benchmark result: $($_.Exception.Message)"
+    }
+  }
+}
 Push-Location -LiteralPath $root
 try {
   foreach ($file in $benchmarkFiles) {
     Invoke-Checked "benchmark JSON validation: $($file.Name)" { python -m json.tool $file.FullName | Out-Null }
   }
 
-  if (Test-Path -LiteralPath (Join-Path $root "src") -PathType Container) {
-    $previousPythonPath = $env:PYTHONPATH
-    $srcPath = Join-Path $root "src"
-    if ($previousPythonPath) {
-      $env:PYTHONPATH = $srcPath + [System.IO.Path]::PathSeparator + $previousPythonPath
+  $srcRoot = Join-Path $root "src"
+  $pythonFiles = @()
+  if (Test-Path -LiteralPath $srcRoot -PathType Container) {
+    $pythonFiles = @(Get-ChildItem -Path $srcRoot -Recurse -Filter *.py -File)
+  }
+  if ($pythonFiles.Count -gt 0) {
+    $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+    if ($pythonCommand) {
+      $previousPythonPath = $env:PYTHONPATH
+      if ($previousPythonPath) {
+        $env:PYTHONPATH = $srcRoot + [System.IO.Path]::PathSeparator + $previousPythonPath
+      } else {
+        $env:PYTHONPATH = $srcRoot
+      }
+      Invoke-Checked "python compile src" { python -m compileall -q $srcRoot }
+      $testsRoot = Join-Path $root "tests"
+      $pythonTests = @()
+      if (Test-Path -LiteralPath $testsRoot -PathType Container) {
+        $pythonTests = @(Get-ChildItem -Path $testsRoot -Recurse -Filter *.py -File)
+      }
+      if ($pythonTests.Count -gt 0) {
+        Invoke-Checked "python compile tests" { python -m compileall -q $testsRoot }
+        Invoke-Checked "python unittest" { python -m unittest discover -s $testsRoot -v }
+      }
+      $env:PYTHONPATH = $previousPythonPath
+    } elseif ($SkipDocker) {
+      Add-Failure "Python toolchain is required to validate Python source when Docker validation is skipped"
     } else {
-      $env:PYTHONPATH = $srcPath
+      Write-Host "python_toolchain=not_found; relying on Docker build for Python validation"
     }
-    Invoke-Checked "python compile src" { python -m compileall -q (Join-Path $root "src") }
-    if (Test-Path -LiteralPath (Join-Path $root "tests") -PathType Container) {
-      Invoke-Checked "python compile tests" { python -m compileall -q (Join-Path $root "tests") }
-      Invoke-Checked "python unittest" { python -m unittest discover -s (Join-Path $root "tests") -v }
+  }
+  $goModPath = Join-Path $root "go.mod"
+  if (Test-Path -LiteralPath $goModPath -PathType Leaf) {
+    $goCommand = Get-Command go -ErrorAction SilentlyContinue
+    if ($goCommand) {
+      $goFiles = @(Get-ChildItem -Path $root -Recurse -Filter *.go -File | Where-Object {
+        $normalized = $_.FullName -replace "\\", "/"
+        $normalized -notmatch "/.git/" -and
+        $normalized -notmatch "/.portfolio/" -and
+        $normalized -notmatch "/vendor/"
+      })
+      if ($goFiles.Count -gt 0) {
+        $unformatted = @(& gofmt -l $goFiles.FullName)
+        if ($LASTEXITCODE -ne 0) {
+          Add-Failure "gofmt failed with exit code $LASTEXITCODE"
+          $global:LASTEXITCODE = 0
+        } elseif ($unformatted.Count -gt 0) {
+          Add-Failure "Go files require gofmt: $($unformatted -join ', ')"
+        }
+      }
+      Invoke-Checked "go test" { go test ./... }
+      Invoke-Checked "go vet" { go vet ./... }
+    } elseif ($SkipDocker) {
+      Add-Failure "Go toolchain is required to validate go.mod projects when Docker validation is skipped"
+    } else {
+      Write-Host "go_toolchain=not_found; relying on Docker build for Go validation"
     }
-    $env:PYTHONPATH = $previousPythonPath
+  }
+  $gradleBuild = @(
+    (Join-Path $root "build.gradle.kts"),
+    (Join-Path $root "build.gradle")
+  ) | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf }
+  if ($gradleBuild.Count -gt 0) {
+    $gradleValidator = Join-Path $root "tools/validate-gradle-project.ps1"
+    if (-not (Test-Path -LiteralPath $gradleValidator -PathType Leaf)) {
+      Add-Failure "Gradle project is missing tools/validate-gradle-project.ps1"
+    } else {
+      $javaCommand = Get-Command java -ErrorAction SilentlyContinue
+      if ($javaCommand) {
+        Invoke-Checked "strict Gradle validation" { & $gradleValidator -RepoPath $root }
+      } elseif ($SkipDocker) {
+        Add-Failure "Java is required for strict Gradle validation when Docker is skipped"
+      } else {
+        Invoke-Checked "structural Gradle validation" { & $gradleValidator -RepoPath $root -SkipBuild }
+      }
+    }
   }
 } finally {
   Pop-Location
@@ -104,15 +369,27 @@ try {
 
 $legacy = ("ro" + "che" + "do")
 $patterns = @($legacy, ($legacy.Substring(0,1).ToUpper() + $legacy.Substring(1)))
-$searchFiles = Get-ChildItem -Path $root -Recurse -File | Where-Object {
-  $normalized = $_.FullName -replace "\\", "/"
-  $normalized -notmatch "/.git/" -and
-  $normalized -notmatch "/data/runtime/" -and
-  $_.Extension -in @(".md", ".yaml", ".yml", ".json", ".ps1", ".py", ".js", ".ts", ".tsx", ".go", ".kt", ".java")
-}
+$searchExtensions = @(".md", ".yaml", ".yml", ".json", ".ps1", ".py", ".js", ".ts", ".tsx", ".go", ".kt", ".java")
+$searchFiles = @(
+  foreach ($relativePath in $trackedFiles) {
+    $candidate = Join-Path $root ($relativePath -replace '/', [System.IO.Path]::DirectorySeparatorChar)
+    if (
+      (Test-Path -LiteralPath $candidate -PathType Leaf) -and
+      ([System.IO.Path]::GetExtension($candidate) -in $searchExtensions)
+    ) {
+      Get-Item -LiteralPath $candidate
+    }
+  }
+)
 $forbidden = Select-String -Path $searchFiles.FullName -Pattern $patterns -SimpleMatch -ErrorAction SilentlyContinue
 if ($forbidden) {
   Add-Failure "Forbidden legacy project nickname found"
+}
+
+$mutableKumoPattern = "ghcr.io/sivchari/kumo:" + "latest"
+$mutableKumo = Select-String -Path $searchFiles.FullName -Pattern $mutableKumoPattern -SimpleMatch -ErrorAction SilentlyContinue
+if ($mutableKumo) {
+  Add-Failure "Mutable Kumo image reference found; pin a reviewed tag and digest"
 }
 
 if (-not $SkipDocker -and (Test-Path -LiteralPath (Join-Path $root "Dockerfile") -PathType Leaf)) {
@@ -121,7 +398,7 @@ if (-not $SkipDocker -and (Test-Path -LiteralPath (Join-Path $root "Dockerfile")
 }
 
 if ($failures.Count -gt 0) {
-  $failures | ForEach-Object { Write-Error $_ }
+  $failures | ForEach-Object { Write-Error $_ -ErrorAction Continue }
   exit 1
 }
 

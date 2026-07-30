@@ -1,72 +1,42 @@
-# Technical Decision
+# ADR-002: Kotlin/JVM, Kafka Streams, and broker semantics
 
-## Status
+Status: accepted
 
-Accepted
+## Selected stack
 
-## Selected options
+- Kotlin 2.4.10 on Java 21.
+- Gradle Wrapper 9.3.0 with Kotlin DSL and dependency locking.
+- Kafka Streams 4.3.1 and Kotlin serialization 1.11.0.
+- JUnit 5, AssertJ, TopologyTestDriver, and Testcontainers Kafka 2.0.5.
+- Official Kafka Native 4.3.1 and pinned Temurin JDK/JRE images.
 
-- Stack: Kotlin 2.0.21 + Java 21 + Gradle Kotlin DSL.
-- API style: CLI (`demo`, `benchmark`, `run`), porque nÃ£o hÃ¡ API HTTP no claim.
-- Messaging: Kafka Streams DSL; stream/table join e state store materializada.
-- Cloud: `adapter-fake`/none in scope. Kumo fica documentado como provider local
-  futuro para portas AWS; nÃ£o hÃ¡ chamada AWS que justifique rodÃ¡-lo.
-- Runtime/database: JVM local ou imagem JRE 21; nenhum banco.
-- Libraries: Kafka Streams/test-utils, Kotlin serialization, JUnit 5, AssertJ e
-  Ktlint; cada uma expÃµe o conceito medido e mantÃ©m o Docker pequeno.
+Kotlin was selected for immutable contracts, concise policies, and Java ecosystem interoperability. Spring was rejected because no lifecycle or web capability is required.
 
 ## Messaging decision
 
-Kafka Ã© justificado por stream processing, estado agregado e possibilidade de
-replay/consumer groups no adaptador real. O default usa `TopologyTestDriver`,
-nÃ£o Redpanda, pois o broker nÃ£o contribui para a prova local de join/agregaÃ§Ã£o.
+Kafka is selected because the behavior requires keyed logs, replay, KTable joins, materialized state, changelogs, and partition-aware ordering. RabbitMQ is appropriate for queue routing and acknowledgements, but not for the stateful stream-table model proved here. Synchronous HTTP removes replay and state restoration from the evidence.
 
-Delivery semantics no default: processamento sÃ­ncrono do driver. No runtime
-real, Kafka Streams oferece os semÃ¢nticos configurados pelo cluster; exatamente-
-uma-vez, retries, retenÃ§Ã£o, partiÃ§Ãµes e DLQ exigem uma decisÃ£o operacional futura.
-Particionamento deve usar `customerId` como chave para preservar a ordem por
-cliente. `customer-profiles` deve ser uma KTable/compactada na implantaÃ§Ã£o real.
+Broker mode uses `exactly_once_v2`, idempotent producer settings, `read_committed` output consumption, three partitions, and replication factor one only for local execution. Production requires replicated transaction/offset/changelog topics.
 
-## SOLID, KISS and testability
+## Protocol and cloud decisions
 
-- SRP: eventos/polÃ­tica, topologia, Serde, benchmark e CLI tÃªm razÃµes de mudanÃ§a
-  separadas.
-- OCP/LSP: `TopologyTestDriver` e `KafkaStreams` consomem o mesmo `Topology`; a
-  polÃ­tica pura nÃ£o conhece as implementaÃ§Ãµes externas.
-- ISP/DIP: a regra de enriquecimento recebe dados concretos do contrato e o
-  acesso ao broker fica na borda de `TopologyFactory`/`run`.
-- DRY: fixtures, nomes de tÃ³picos e Serdes sÃ£o compartilhados por teste e
-  benchmark; nÃ£o hÃ¡ abstraÃ§Ã£o genÃ©rica para futuros brokers.
-- KISS/YAGNI: sem Spring, banco, microserviÃ§os, registry ou Kumo obrigatÃ³rio.
-- Law of Demeter: agregador manipula apenas o evento e seu estado direto.
+The interface is CLI/events, not HTTP, GraphQL, or gRPC. Kumo and AWS are deliberately absent because the use case invokes no cloud service. If a future archive or secret use case appears, application-owned ports must keep provider SDKs outside domain code; Kumo remains the first local adapter candidate.
 
-## Cloud/Kumo adapter
+## Libraries
 
-NÃ£o hÃ¡ serviÃ§o cloud no escopo e, portanto, Kumo nÃ£o Ã© uma dependÃªncia teatral.
-Quando o pipeline precisar armazenar payloads, emitir notificaÃ§Ãµes ou guardar
-segredos, a aplicaÃ§Ã£o deverÃ¡ adicionar uma porta pequena e implementar Kumo
-local/AWS externamente, selecionando por configuraÃ§Ã£o. O domÃ­nio nÃ£o importa
-SDK AWS nem endpoint Kumo.
+Each library exposes measured behavior. No dependency is added only for architecture appearance. Versions are fixed in `build.gradle.kts` and `gradle.lockfile`. Wrapper distribution and JAR checksums are validated separately.
 
-## Rejected options
+## SOLID and simplicity
 
-| Option | Reason |
-|---|---|
-| Redpanda obrigatÃ³rio | Custo operacional e nÃ£o-determinismo no caminho padrÃ£o. |
-| RabbitMQ | SemÃ¢ntica de fila/ack nÃ£o prova stream/table join ou agregaÃ§Ã£o replayable. |
-| Kinesis | NÃ£o Ã© necessÃ¡rio e dificultaria o laboratÃ³rio local. |
-| Spring WebFlux/REST | NÃ£o existe endpoint e o benchmark Ã© de topologia, nÃ£o HTTP. |
+- SRP: domain policy, topology, runtime, benchmark, and evidence validation change independently.
+- OCP: new sinks/metrics can be composed without changing event contracts.
+- LSP: no fake adapter hierarchy is claimed; any future implementation must preserve ordering, failures, and consistency.
+- ISP: interfaces are introduced only when a second consumer needs a smaller contract.
+- DIP: domain is independent; infrastructure depends on domain data/policy.
+- DRY: topic/store names and fixtures have one source; incidental syntax is not abstracted.
+- KISS/YAGNI: one process, one broker for local evidence, no Spring, database, registry, cloud, or microservice split.
+- Law of Demeter: policies operate on their direct event/state inputs.
 
-## Benchmark impact
+## Revisit triggers
 
-O desenho elimina broker/network overhead do baseline e mede exatamente o custo
-de processar um lote fixo dentro do driver. O JSON separa throughput do custo
-por registro (`topology_latency_*`) e registra ambiente para comparaÃ§Ã£o.
-
-Validation:
-
-```powershell
-gradle --no-daemon clean check
-gradle --no-daemon run --args="benchmark 1000 benchmarks/results/latest.json"
-powershell -File tools/validate-project.ps1 -SkipDocker
-```
+Revisit when there is a second deployable consumer, a schema compatibility requirement, external side effects, multi-cluster replication, or a measured bottleneck that cannot be addressed through Kafka configuration.

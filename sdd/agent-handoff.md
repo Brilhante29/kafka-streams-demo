@@ -1,65 +1,51 @@
 # Agent Handoff
 
-Project: `28 - kafka-streams-demo`
+## Objective
 
-## Principal Agent Summary
+Finish `#28 kafka-streams-demo` as a release candidate before opening another portfolio repository.
 
-- Objective: provar processamento streaming com enriquecimento e agregaÃ§Ã£o.
-- Portfolio program: `mlops-data-platform`.
-- Public proof claim: `messages_per_second` em topologia determinÃ­stica.
-- Primary benchmark: `1000` mensagens, seed `42`.
-- Default runnable path: `gradle run --args="benchmark 1000 benchmarks/results/latest.json"` ou Docker equivalente.
+## Files analyzed
+
+`build.gradle.kts`, application/domain/topology/benchmark sources, unit/integration tests, Dockerfile, Compose, benchmark contracts, validators, SDD, OpenSpec, and portfolio control artifacts.
+
+## Files changed
+
+Kotlin/Gradle runtime and benchmark sources, integration tests, wrapper/lockfile, Docker/Compose, manifest/reuse contract, validators, SDD, CI/docs/control artifacts.
 
 ## Decisions
 
-| Role | Decision | Evidence Path | Status |
-|---|---|---|---|
-| program-planner | MLOps/data streaming | `project.yaml`, `sdd/spec.md` | complete |
-| architecture-selector | event-driven + hexagonal edge | `sdd/architecture-decision.md` | complete |
-| engineering-principles-reviewer | SOLID/KISS/YAGNI documented | `sdd/technical-decision.md` | complete |
-| stack-decision-agent | Kotlin/JVM/Gradle | `build.gradle.kts` | complete |
-| api-style-agent | CLI | `src/main/kotlin/com/portfolio/streaming/App.kt` | complete |
-| cloud-local-first-agent | no cloud dependency; Kumo future adapter | `sdd/technical-decision.md` | complete |
-| messaging-agent | Kafka Streams, broker-free default | `sdd/spec.md` | complete |
-| language-profile-agent | Kotlin + Java 21 | `project.yaml` | complete |
-| benchmark-harness-agent | fixed fixture and JSON | `sdd/benchmark-plan.md` | complete |
-| design-system-agent | topology diagram and README structure | `docs/topology.md` | complete |
-| security-reuse-reviewer | no credentials/default secrets | `README.md`, `REFERENCES.md` | complete |
-| release-ci-publisher | CI/Docker ready; no push | `.github/workflows/ci.yml` | complete |
+- Kotlin 2.4.10, Java 21, Gradle Wrapper 9.3.0, Kafka Streams 4.3.1.
+- Real-broker benchmark is the public metric; TopologyTestDriver remains a separate microbenchmark.
+- Broker mode uses `exactly_once_v2`, three partitions, idempotent production, and read-committed output.
+- No Spring, HTTP/GraphQL/gRPC, database, Kumo, or AWS because none contributes to the claim.
+- Domain remains Kafka/framework-free; no speculative adapter hierarchy.
 
-## Local-First Runtime
+## Commands and results
 
-- Docker command: `docker build -t kafka-streams-demo . && docker run --rm kafka-streams-demo`
-- Local services: none on default path.
-- Kumo services: none; no cloud behavior is required.
-- Real target: Kafka-compatible infrastructure via `run` and `KAFKA_BOOTSTRAP_SERVERS`.
-- Default path requires paid secret: no.
+- `./gradlew --no-daemon ktlintFormat check compileIntegrationTestKotlin`: passed; five JVM tests passed and integration sources compiled.
+- Broker smoke: 30 records, one warmup, two samples; primary median 121.92524101013193 records/s; output invariant 1.0; exit 0.
+- Benchmark semantic validator: passed.
+- Local fallback secret scan: passed over 159 candidate files.
+- `docker compose ... config --quiet`: passed.
 
-## Architecture Boundaries
+Smoke evidence is dirty-tree development evidence and must not be published as the release baseline.
 
-- Domain: serializable event contracts and pure enrichment/summary policy.
-- Use case: topology composition is the streaming application boundary.
-- Ports/adapters: `TopologyFactory` and `KafkaStreams` runtime edge; driver is a deterministic test adapter.
-- Direction: infrastructure depends on domain; domain never imports Kafka or cloud.
+## Failures resolved
 
-## Benchmark Handoff
+- Missing Gradle typed accessor in custom integration source set.
+- Kafka healthcheck referenced scripts absent from the native image.
+- RocksDB JNI could not execute from `/tmp` mounted `noexec`.
+- Mounting all `/app/build` hid the configured JVM temp directory.
+- Startup errors previously waited for timeout; state/error listener now fails fast.
 
-- Metric: `messages_per_second`.
-- Unit: `messages/s`.
-- Higher is better for throughput; lower is better for latency.
-- Result path: `benchmarks/results/baseline.json`.
-- Fixture: seed `42`, fixed profile list and generated purchase batch.
+## Open work
 
-## Open Risks
+- Finish README/OpenSpec/CI/control alignment.
+- Run the one release-candidate sequence after a clean implementation commit.
+- Generate clean five-sample baseline, scans, and SBOM.
+- Run one independent review and fix only P0/P1.
+- Add/verify GitHub remote, push branch, open PR, and observe CI. Do not merge without explicit authorization.
 
-- A numeric baseline still needs a Java/Docker execution in an environment where those tools are available.
-- Real deployment must decide security, partitions, retention, EOS/retry and schema evolution.
+## Exact next action
 
-## Publication Gates
-
-- [x] Docker path is defined.
-- [x] Benchmark command and JSON schema are defined.
-- [x] README starts with number and claim.
-- [x] References are documented.
-- [x] No secret is needed in default path.
-- [ ] Numeric benchmark evidence updated after execution.
+Run structural validators after documentation/CI edits, then inspect `git diff --check` and stage the Gradle wrapper with executable mode before the implementation commit.

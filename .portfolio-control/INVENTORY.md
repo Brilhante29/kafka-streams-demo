@@ -1,21 +1,24 @@
-# Portfolio Control: #28 kafka-streams-demo
+# Inventory: #28 kafka-streams-demo
 
 ## Identity
 
-- **Program:** <program>
-- **Status:** scaffold
-- **Proves:** processamento streaming
-- **Primary benchmark:** `messages_per_second`
+- Program: `mlops-data-platform`.
+- Status: implementation; release candidate not yet executed.
+- Claim: stateful stream-table enrichment and per-customer aggregation.
+- Primary metric: `end_to_end_input_records_per_second`.
 
-## Evidence Map
+## Evidence map
 
 | Evidence | Location | State |
 |---|---|---|
-| Specification | `sdd/spec.md` | required |
-| Architecture decision | `sdd/architecture-decision.md` | required |
-| Benchmark plan | `sdd/benchmark-plan.md` | required |
-| Benchmark result | `benchmarks/results/` | pending |
-| OpenSpec verification | `openspec/artifacts/verification.md` | required |
-| Reuse review | `sdd/reuse-improvement-review.md` | required |
-
-This file is the project-level inventory. Update it whenever a new proof artifact, reusable component, or architectural decision appears.
+| Manifest V2 | `project.yaml` | schema passed |
+| Reuse contract | `reuse.manifest.yaml` | current |
+| SDD and requirements | `sdd/spec.md` | current |
+| ADRs | `sdd/architecture-decision.md`, `sdd/technical-decision.md` | accepted |
+| Benchmark plan | `sdd/benchmark-plan.md` | current |
+| Broker smoke | ignored `benchmarks/results/broker-smoke.json` | passed, dirty development evidence |
+| Release baseline | `benchmarks/results/baseline.json` | pending clean run |
+| OpenSpec graph | `openspec/artifacts/` | current |
+| CI | `.github/workflows/ci.yml` | being hardened; remote result pending |
+| Security/SBOM | CI and release controls | pending full RC |
+| Handoff | `.portfolio-control/CURRENT_HANDOFF.md` | current |

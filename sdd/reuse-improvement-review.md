@@ -1,46 +1,39 @@
-﻿# Reuse Improvement Review
+# Reuse Improvement Review
 
-Project: `28 - kafka-streams-demo`
+Project: `#28 kafka-streams-demo`
+Kit: `portfolio-reuse-kit` 1.2.0
 
-## Review Points
+## Consumed assets
 
-- [x] after scaffold
-- [x] after architecture decision
-- [x] after first working slice
-- [x] after benchmark harness
-- [x] before publication
+- Benchmark result V2 schema and provenance model.
+- Gradle Wrapper/JVM validator and Kotlin/JVM decision profile.
+- Kafka Streams decision matrix and agent skill.
+- Continuity checkpoint protocol shared by Codex and Claude.
+- OpenSpec/AITmpl artifact graph and project manifest schema.
+
+See `reuse.manifest.yaml` for file-level traceability.
 
 ## Findings
 
-| Finding | Classification | Kit Area | Action | Status |
-|---|---|---|---|---|
-| O kit jÃ¡ tinha schema de benchmark e gates de README/SDD; foram usados sem copiar cÃ³digo do projeto externo. | reject | contracts/harness | manter o contrato local e registrar o resultado especÃ­fico do projeto | resolved |
-| O caminho broker-free precisava ser explicitado para nÃ£o parecer que Kafka foi abandonado. | patch_now | docs/sdd | documentar `TopologyTestDriver` como default e `KafkaStreams` como adapter real | resolved |
-| O validator existente nÃ£o verifica Gradle/Kotlin. | backlog | validation | adicionar uma regra de linguagem JVM quando houver mais projetos Kotlin no kit | recorded |
+| Finding | Classification | Action | State |
+|---|---|---|---|
+| Wrapper checksum/toolchain validation is reusable across JVM projects. | reuse | Consume kit validator unchanged. | resolved |
+| Broker and topology-driver evidence were previously conflated. | generic gap | Keep separate benchmark IDs/modes and propose a reusable streaming harness after this implementation is stable. | pending review |
+| RocksDB JNI requires executable temp storage even when `/tmp` is hardened. | generic Docker lesson | Document dedicated executable tmpfs pattern; do not weaken all `/tmp`. | pending review |
+| Exact weekly quota is not observable from repository code. | operational constraint | Checkpoint at phase boundaries and immediately on any usage warning. | resolved |
+| Kafka-specific topic fixtures and business event models are project-owned. | reject reuse | Keep them out of the kit. | resolved |
 
-## Patch Now Decisions
+## Improvement rule
 
-- Nenhuma mudanÃ§a foi feita em `.portfolio` ou `.portfolio-control`; o ganho Ã©
-  especÃ­fico deste repositÃ³rio e estÃ¡ documentado nos SDDs.
-- O benchmark JSON mantÃ©m o schema compartilhado e adiciona latÃªncias de
-  topologia como campos numÃ©ricos em `summary`.
+A contribution returns to the kit only if another repository can consume it without inheriting Kafka business semantics. The likely reusable unit is the evidence orchestration and hardened JVM temp-storage pattern, not this topology.
 
-## Backlog Decisions
-
-- Criar no kit um gate opcional para `gradle check`, wrapper e validaÃ§Ã£o de
-  toolchain, evitando que o validator assuma apenas Python.
-- Padronizar um template de topologia/benchmark broker-free para projetos de
-  streaming futuros.
-
-## Rejected Improvements
-
-- NÃ£o copiar implementaÃ§Ã£o de `kafka-streams-examples`: a referÃªncia orienta
-  conceitos; contratos, fixtures e topologia sÃ£o especÃ­ficos deste projeto.
-- NÃ£o adicionar Kumo, AWS SDK ou broker ao kit sÃ³ para preencher o campo cloud;
-  isso aumentaria custo sem um comportamento cloud no claim.
-
-## Final Gate
+## Final gate
 
 - [x] Reusable improvements were patched or recorded.
 - [x] Project-specific implementation was not moved into the kit.
-- [x] Validation reflects the deterministic broker-free benchmark and Gradle gate.
+- [x] Validation reflects broker/driver separation, JVM wrapper integrity, and continuity checkpoints.
+- [x] Existing kit assets were consulted before creating local assets.
+- [x] Local overrides have explicit reasons.
+- [x] Project-specific code was not copied into the kit.
+- [x] Concrete generic gaps are recorded.
+- [ ] Contribution-back is tested in a second consumer or accepted as a kit patch.
