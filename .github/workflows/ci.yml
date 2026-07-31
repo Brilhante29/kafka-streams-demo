@@ -19,7 +19,7 @@ jobs:
       - name: Run fixed-batch benchmark
         run: gradle --no-daemon run --args="benchmark 100000 benchmarks/results/ci.json"
       - name: Validate benchmark JSON
-        run: python -m json.tool benchmarks/results/ci.json >/dev/null
+        run: python3 -m json.tool benchmarks/results/ci.json >/dev/null
 
   docker:
     runs-on: ubuntu-latest
