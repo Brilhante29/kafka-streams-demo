@@ -1,10 +1,8 @@
-﻿package com.portfolio.streaming.infra
+package com.portfolio.streaming.infra
 
 import com.portfolio.streaming.domain.CustomerProfile
 import com.portfolio.streaming.domain.CustomerSummary
-import com.portfolio.streaming.domain.EnrichedPurchase
 import com.portfolio.streaming.domain.EnrichmentPolicy
-import com.portfolio.streaming.domain.PurchaseEvent
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.common.utils.Bytes
 import org.apache.kafka.streams.StreamsBuilder
@@ -24,18 +22,23 @@ object TopologyFactory {
     const val ENRICHED_TOPIC = "enriched-purchases"
     const val SUMMARY_TOPIC = "customer-summaries"
     const val SUMMARY_STORE = "customer-summary-store"
+    const val PROFILE_STORE = "customer-profile-store"
 
     fun build(): Topology {
         val builder = StreamsBuilder()
-        val purchaseSerde = JsonSerde(PurchaseEvent.serializer())
-        val profileSerde = JsonSerde(CustomerProfile.serializer())
-        val enrichedSerde = JsonSerde(EnrichedPurchase.serializer())
-        val summarySerde = JsonSerde(CustomerSummary.serializer())
+        val purchaseSerde = DomainJsonSerdes.purchaseEvent()
+        val profileSerde = DomainJsonSerdes.customerProfile()
+        val enrichedSerde = DomainJsonSerdes.enrichedPurchase()
+        val summarySerde = DomainJsonSerdes.customerSummary()
 
         val profiles =
             builder.table(
                 PROFILES_TOPIC,
                 Consumed.with(Serdes.String(), profileSerde),
+                Materialized
+                    .`as`<String, CustomerProfile, KeyValueStore<Bytes, ByteArray>>(PROFILE_STORE)
+                    .withKeySerde(Serdes.String())
+                    .withValueSerde(profileSerde),
             )
         val purchases =
             builder.stream(
@@ -71,14 +74,20 @@ object TopologyFactory {
     fun properties(
         applicationId: String = "kafka-streams-demo",
         bootstrapServers: String = "dummy:9092",
+        realBroker: Boolean = false,
     ): Properties =
         Properties().apply {
             put(StreamsConfig.APPLICATION_ID_CONFIG, applicationId)
             put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
             put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String()::class.java.name)
             put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.ByteArray()::class.java.name)
-            put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, 0)
-            put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 0)
+            put(StreamsConfig.STATESTORE_CACHE_MAX_BYTES_CONFIG, if (realBroker) 10L * 1024 * 1024 else 0L)
+            put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, if (realBroker) 100 else 0)
+            put("processing.exception.handler.global.enabled", "true")
             put(StreamsConfig.STATE_DIR_CONFIG, "build/streams-state")
+            if (realBroker) {
+                put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2)
+                put(StreamsConfig.REPLICATION_FACTOR_CONFIG, 1)
+            }
         }
 }

@@ -1,28 +1,20 @@
 # Critical Path: #28 kafka-streams-demo
 
 ```text
-intent
-  -> component pack
-  -> agent graph
-  -> SDD/OpenSpec artifacts
-  -> architecture decision
-  -> stack/API/messaging/cloud decisions
-  -> implementation
-  -> tests and Docker
-  -> benchmark JSON
-  -> independent review
-  -> README/post evidence
+local release evidence complete
+  -> final structural/document validation
+  -> evidence/docs commit
+  -> verify remote + push branch
+  -> open PR + observed green CI
+  -> resolve publication-state review finding
+  -> explicit merge decision
+  -> next repository
 ```
 
-## Agent Handoff Contract
+Stop rules:
 
-1. `reuse-architect` inspects the kit and proposes reusable inputs.
-2. `repository-auditor` checks the repository against the gates.
-3. `sdd-spec-agent` freezes the problem, constraints, architecture, and benchmark.
-4. `implementation-agent` owns domain and application behavior.
-5. `docker-ci-agent` owns reproducible runtime and CI.
-6. `benchmark-agent` owns the measured evidence.
-7. `documentation-agent` aligns README, SDD, and benchmark numbers.
-8. `independent-reviewer` can reject completion when evidence is missing.
-
-No agent silently changes another agent's responsibility. Each handoff records inputs, outputs, risks, and the next command.
+- Do not regenerate the baseline, image, or SBOM unless source/runtime inputs change.
+- After two equivalent failures, change strategy and record the cause.
+- P2/P3 findings enter the measured backlog; only P0/P1 block publication.
+- Exact weekly balance is not exposed to repository code. At a product quota warning, finish the smallest safe unit, capture continuity, and stop heavy work.
+- Never merge without explicit authorization.

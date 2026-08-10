@@ -1,65 +1,117 @@
+manifest_version: 2
 id: 28
 name: kafka-streams-demo
 program:
   id: mlops-data-platform
-  narrative_fit: "Demonstra uma etapa de streaming reproduzÃƒÂ­vel para mover eventos de negÃƒÂ³cio a features agregadas com contrato e benchmark local."
+  narrative_fit: "Proves the streaming stage that turns business events into enriched and aggregated data products."
   shared_assets:
-    - streaming benchmark JSON
-    - deterministic topology fixture
+    - benchmark-result-v2 contract
+    - deterministic event fixtures
+    - Kafka Streams decision profile
 status: benchmarked
-claim: processamento streaming
-stack: [kotlin, java21, gradle, kafka-streams, junit5, docker, redpanda-optional]
+claim: "Processes purchases through a stateful stream-table join and customer aggregation with reproducible broker-backed evidence."
+stack:
+  - kotlin
+  - java21
+  - gradle-kotlin-dsl
+  - kafka-streams
+  - kafka
+  - testcontainers
+  - docker
 language_profile:
-  primary: spring-kotlin-backend
+  primary: kotlin-jvm
   secondary: []
-  reason: "Kotlin/JVM e testes de infraestrutura sÃƒÂ£o o sinal pÃƒÂºblico pedido; a topologia permanece um app de linha de comando sem Spring para manter o nÃƒÂºcleo mÃƒÂ­nimo."
+  reason: "Kotlin provides concise immutable domain contracts and Java interoperability without adding a Spring runtime that the streaming claim does not need."
+jvm:
+  language: kotlin
+  framework: none
+  build: gradle-kotlin-dsl
+  toolchain_version: 21
+  gradle_wrapper_version: "9.3.0"
+  wrapper_distribution_sha256: "0d585f69da091fc5b2beced877feab55a3064d43b8a1d46aeb07996b0915e0e0"
+  interoperability_boundary: "Domain records remain free of serialization, Kafka, Docker, and framework imports; infrastructure owns wire DTO mapping."
+  benchmark_effect: "The JVM, dependency lock, container images, and fixture seed are fixed in every evidence record."
+  rejected_alternatives:
+    - option: java-spring
+      reason: "No HTTP, dependency injection, persistence, or web lifecycle is part of the measured behavior."
+    - option: scala
+      reason: "It would add a second JVM language without improving the Kafka Streams proof or portfolio interoperability."
+messaging_decision:
+  selected_messaging_mode: kafka
+  reason: "The problem requires replayable partitioned logs, stream-table joins, materialized state, and restoration semantics."
+  delivery_guarantee: exactly-once-v2 for the broker-backed runtime
+  ordering_need: "Per-customer ordering through customerId keys and three partitions."
+  replay_need: "Required for rebuilding profile and aggregate state from compacted/changelog topics."
+  retry_dlq_strategy: "Kafka client retries are bounded by client configuration; malformed records fail fast because no product requirement justifies a silent DLQ."
+  rejected_alternatives:
+    - option: rabbitmq
+      reason: "Queue routing and acknowledgements do not provide the required KTable join and local state-store model."
+    - option: synchronous-http
+      reason: "Request-response coupling removes replay and partitioned state restoration from the proof."
+  kafka_streams:
+    processing_mode: kafka-streams
+    key_strategy: customerId
+    repartition_strategy: "Purchases keep customerId as the key; enriched records are re-keyed before the customer aggregate."
+    serde_contract: "Versioned JSON wire DTOs map to framework-free domain records at the infrastructure boundary."
+    topology: "purchases joins customer-profiles, emits enriched-purchases, and aggregates customer-summaries."
+    state_stores:
+      - customer-profile-store
+      - customer-summary-store
+    processing_guarantee: exactly_once_v2
+    invalid_record_strategy: "Fail fast and expose the error; quarantine is intentionally out of scope."
+    restoration_strategy: "Broker mode restores named state stores from compacted source and changelog topics."
+    benchmark_modes:
+      - topology-test-driver
+      - real-broker
+    input_topics:
+      - purchases
+      - customer-profiles
+    output_topics:
+      - enriched-purchases
+      - customer-summaries
+    stream_table_join_semantics: "Each purchase joins the latest compacted customer profile for the same customerId."
+    window_and_grace_policy: "No event-time window is used, so grace is not applicable."
+    changelog_policy: "Named persistent stores use Kafka Streams changelogs in broker mode."
+    rebalance_plan: "Integration tests cover broker startup and end-to-end state; multi-instance reassignment remains a documented production extension."
+    evidence_plan: "Keep deterministic topology evidence separate from three-partition real-broker end-to-end evidence."
 decision_brain:
-  agentic_spec:
-    source: .portfolio/decision-brain/agentic-spec-governance.yaml
-    spec_store: portfolio-reuse-kit
-    schema: portfolio-system
-    project_config: openspec/config.yaml
-    component_pack: mlops-data-platform
-    artifact_graph:
-      - intent->portfolio-impact->architecture-record
-      - architecture-record+portfolio-impact->component-pack
-      - component-pack->reuse-delta->benchmark-proof->tasks->verification
-  agent_graph:
-    mode: principal-agent-orchestrated
-    source: .portfolio/decision-brain/agent-graph.yaml
-    handoff: sdd/agent-handoff.md
-    local_first_runtime: docker+topology-test-driver
-  reuse_improvement_loop:
-    source: .portfolio/decision-brain/reuse-improvement-loop.yaml
-    review_path: sdd/reuse-improvement-review.md
-    current_status: recorded
   principles:
-    coupling_rule: domain/use cases do not depend on framework, database, broker, cloud SDK, transport, or UI
-    solid: [srp, ocp, lsp, isp, dip]
-    simplicity_rule: KISS/YAGNI; add infrastructure only when the claim needs it
-    testability_rule: domain and topology execute through pure tests or TopologyTestDriver
-    rejected_overengineering: [spring-http, mandatory-broker, database, microservices, cloud-sdk]
-  stack_profile: spring-kotlin-backend
+    coupling_rule: "Domain records and policies do not import Kafka, cloud SDKs, transport, Docker, or frameworks."
+    solid:
+      - srp
+      - ocp
+      - lsp
+      - isp
+      - dip
+    simplicity_rule: "KISS and YAGNI: use one topology process, no Spring, database, HTTP API, schema registry, or cloud service without a requirement."
+    testability_rule: "Pure domain rules and TopologyTestDriver tests run before broker-backed integration."
+    rejected_overengineering:
+      - microservices
+      - spring-boot
+      - database
+      - schema-registry
+      - cloud-sdk
+  stack_profile: kafka-streams
   api_style: cli
   messaging: kafka
   cloud:
-    mode: adapter-fake
-    local_provider: kumo
-    real_provider_target: aws
+    mode: none
+    local_provider: none
+    real_provider_target: none
     emulated_services: []
-    adapter_rule: "Sem integraÃƒÂ§ÃƒÂ£o cloud neste escopo; futuras portas mantÃƒÂªm SDK fora do domÃƒÂ­nio."
-    config_switch: CLOUD_PROVIDER=kumo|aws|none
-    unsupported_behaviors: ["Kumo nÃƒÂ£o ÃƒÂ© necessÃƒÂ¡rio sem serviÃƒÂ§o AWS usado pela topologia"]
+    adapter_rule: "Kumo is not started because this repository claims no cloud behavior; a future cloud use case must enter through an outbound port."
+    config_switch: none
+    unsupported_behaviors: []
   database: none
-  runtime: "JVM 21, TopologyTestDriver no default; KafkaStreams.run via adapter explÃƒÂ­cito"
-  library_policy: "Kafka Streams e test-utils provam a semÃƒÂ¢ntica; Kotlin serialization mantÃƒÂ©m o contrato JSON pequeno; Ktlint fecha o gate de estilo."
+  runtime: "JVM 21 in a non-root, read-only Docker runtime with an official Kafka 4.3.1 broker."
+  library_policy: "Dependencies must expose measured streaming behavior, be locked by Gradle, and have compatible licenses."
   record_path: sdd/technical-decision.md
   rejected_options:
-    - option: redpanda-no-default
-      reason: "Broker nÃƒÂ£o ÃƒÂ© necessÃƒÂ¡rio para provar join/agregaÃƒÂ§ÃƒÂ£o e tornaria testes e benchmark dependentes de infraestrutura."
+    - option: graphql-or-rest
+      reason: "There is no client query or request-response use case."
 architecture:
   style: event-driven
-  reason: "Eventos, stream/table join, estado agregado e throughput da topologia sÃƒÂ£o o problema e a mÃƒÂ©trica."
+  reason: "Stateful asynchronous event processing is the behavior under test, not an integration detail."
   problem_forces:
     domain_complexity: low
     integration_pressure: high
@@ -68,21 +120,38 @@ architecture:
     auditability: medium
     throughput_or_async: high
     independent_deployability: low
-  dependency_rule: adapters depend inward; domain and policy do not import Kafka, cloud, Docker, or transport
+  dependency_rule: "Infrastructure composes inward-facing domain contracts; domain code has no Kafka or runtime dependency."
   boundaries:
-    - "domain nÃƒÂ£o importa Kafka, Docker ou cloud"
-    - "infra constrÃƒÂ³i a topologia e os adaptadores de runtime"
-    - "benchmark usa o mesmo contrato atravÃƒÂ©s do TopologyTestDriver"
+    - "domain: immutable events and enrichment/aggregation policies"
+    - "infra: Serdes, topology composition, stores, and Kafka runtime properties"
+    - "benchmark: deterministic fixtures, real-broker harness, metrics, and provenance"
+    - "entrypoint: CLI mode selection only"
   rejected_alternatives:
     - style: microservices
-      reason: "Um ÃƒÂºnico fluxo nÃƒÂ£o exige deploy independente; dividir sÃƒÂ³ adicionaria custo distribuÃƒÂ­do."
+      reason: "One topology has no independent deployment boundaries worth the distributed coordination cost."
+    - style: mvc
+      reason: "There is no interactive request/view lifecycle."
+    - style: full-hexagonal-ports
+      reason: "Kafka Streams is the measured application boundary; wrapping every DSL type would obscure the topology without reducing coupling."
+design_system:
+  tokens: .portfolio/design-system/generated/tokens.css
+  readme_components:
+    - numbered-sections
+    - benchmark-evidence-table
+    - architecture-diagram
+  diagram_required: true
+reuse:
+  manifest: reuse.manifest.yaml
+  kit_version: "1.2.0"
+  contribution_review: sdd/reuse-improvement-review.md
 benchmark:
-  primary_metric: messages_per_second
-  unit: messages/s
-  command: gradle run --args="benchmark 1000 benchmarks/results/latest.json"
+  primary_metric: end_to_end_input_records_per_second
+  unit: records/s
+  command: "pwsh -File tools/run-broker-benchmark.ps1 -Records 1000 -Warmups 1 -Repeats 5 -OutputPath benchmarks/results/baseline.json"
   result_path: benchmarks/results/baseline.json
+  evidence_status: current
 release:
-  docker: "docker build -t kafka-streams-demo . && docker run --rm kafka-streams-demo"
+  docker: "docker build -t kafka-streams-demo:local . && docker run --rm kafka-streams-demo:local demo"
   no_secret_default_path: true
   readme_has_number: true
   references_documented: true

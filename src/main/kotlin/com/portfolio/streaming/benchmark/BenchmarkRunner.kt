@@ -1,53 +1,137 @@
 package com.portfolio.streaming.benchmark
 
 import com.portfolio.streaming.domain.CustomerProfile
-import com.portfolio.streaming.domain.CustomerSummary
-import com.portfolio.streaming.domain.EnrichedPurchase
 import com.portfolio.streaming.domain.PurchaseEvent
-import com.portfolio.streaming.infra.JsonSerde
+import com.portfolio.streaming.infra.DomainJsonSerdes
 import com.portfolio.streaming.infra.TopologyFactory
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.streams.TopologyTestDriver
-import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Instant
-import kotlin.io.path.createDirectories
-import kotlin.math.ceil
 
-@Serializable
-data class BenchmarkReport(
-    val project: String,
-    val metric: String,
-    val value: Double,
-    val unit: String,
-    val timestamp: String,
-    val command: String,
-    val repeat: Int,
-    val samples: List<Double>,
-    val summary: Map<String, Double>,
-    val environment: Map<String, String>,
+private data class TopologyMeasurement(
+    val recordsPerSecond: Double,
+    val elapsedMs: Double,
+    val latenciesMs: List<Double>,
+    val enrichedOutputRecords: Int,
+    val summaryOutputRecords: Int,
 )
 
-object BenchmarkRunner {
+object TopologyBenchmarkRunner {
     private const val DEFAULT_RECORDS = 1_000
     private const val SEED = 42
 
     fun run(
         recordCount: Int = DEFAULT_RECORDS,
+        warmupIterations: Int = 1,
+        measuredIterations: Int = 5,
         outputPath: Path,
-    ): BenchmarkReport {
+    ): BenchmarkReportV2 {
         require(recordCount > 0) { "recordCount must be positive" }
-        val topology = TopologyFactory.build()
-        val purchaseSerde = JsonSerde(PurchaseEvent.serializer())
-        val profileSerde = JsonSerde(CustomerProfile.serializer())
-        val enrichedSerde = JsonSerde(EnrichedPurchase.serializer())
-        val summarySerde = JsonSerde(CustomerSummary.serializer())
-        val driver = TopologyTestDriver(topology, TopologyFactory.properties("benchmark-$SEED"))
+        require(warmupIterations >= 0) { "warmupIterations must not be negative" }
+        require(measuredIterations > 0) { "measuredIterations must be positive" }
 
-        return try {
+        val startedAt = Instant.now()
+        val executionStart = System.nanoTime()
+
+        repeat(warmupIterations) { iteration ->
+            measure(recordCount, "warmup-$iteration")
+        }
+
+        val measurements =
+            List(measuredIterations) { iteration ->
+                measure(recordCount, "measured-$iteration")
+            }
+
+        val throughputSamples = measurements.map { it.recordsPerSecond }
+        val latencySamples = measurements.flatMap { it.latenciesMs }
+        val invariantSamples =
+            measurements.map {
+                val actual = it.enrichedOutputRecords + it.summaryOutputRecords
+                actual / (recordCount * 2.0)
+            }
+        check(invariantSamples.all { it == 1.0 }) {
+            "Topology output invariant failed: expected $recordCount records in each output topic"
+        }
+
+        val report =
+            BenchmarkEvidence.report(
+                benchmarkId = "topology-test-driver",
+                recordCount = recordCount,
+                warmupIterations = warmupIterations,
+                measuredIterations = measuredIterations,
+                startedAt = startedAt,
+                elapsedNanos = System.nanoTime() - executionStart,
+                metrics =
+                    listOf(
+                        BenchmarkMetricV2(
+                            name = "topology_input_records_per_second",
+                            value = BenchmarkEvidence.median(throughputSamples),
+                            unit = "records/s",
+                            direction = "higher_is_better",
+                            samples = throughputSamples,
+                            failures = 0,
+                            summary =
+                                mapOf(
+                                    "minimum" to throughputSamples.min(),
+                                    "maximum" to throughputSamples.max(),
+                                    "p95" to BenchmarkEvidence.percentile(throughputSamples, 0.95),
+                                    "record_count" to recordCount.toDouble(),
+                                    "elapsed_ms_median" to
+                                        BenchmarkEvidence.median(measurements.map { it.elapsedMs }),
+                                ),
+                        ),
+                        BenchmarkMetricV2(
+                            name = "topology_input_latency_p95_ms",
+                            value = BenchmarkEvidence.percentile(latencySamples, 0.95),
+                            unit = "ms",
+                            direction = "lower_is_better",
+                            samples = latencySamples,
+                            failures = 0,
+                            summary =
+                                mapOf(
+                                    "average" to latencySamples.average(),
+                                    "p50" to BenchmarkEvidence.percentile(latencySamples, 0.50),
+                                    "p99" to BenchmarkEvidence.percentile(latencySamples, 0.99),
+                                ),
+                        ),
+                        BenchmarkMetricV2(
+                            name = "output_invariant_ratio",
+                            value = invariantSamples.average(),
+                            unit = "ratio",
+                            direction = "target",
+                            samples = invariantSamples,
+                            failures = 0,
+                            summary = mapOf("target" to 1.0),
+                        ),
+                    ),
+                environment =
+                    mapOf(
+                        "mode" to "topology-test-driver",
+                        "broker" to "none",
+                        "seed" to SEED.toString(),
+                        "records" to recordCount.toString(),
+                    ),
+            )
+        BenchmarkEvidence.write(report, outputPath)
+        return report
+    }
+
+    private fun measure(
+        recordCount: Int,
+        iterationId: String,
+    ): TopologyMeasurement {
+        val purchaseSerde = DomainJsonSerdes.purchaseEvent()
+        val profileSerde = DomainJsonSerdes.customerProfile()
+        val enrichedSerde = DomainJsonSerdes.enrichedPurchase()
+        val summarySerde = DomainJsonSerdes.customerSummary()
+        val driver =
+            TopologyTestDriver(
+                TopologyFactory.build(),
+                TopologyFactory.properties("topology-benchmark-$SEED-$iterationId"),
+            )
+
+        return driver.use {
             val profileInput =
                 driver.createInputTopic(
                     TopologyFactory.PROFILES_TOPIC,
@@ -85,84 +169,18 @@ object BenchmarkRunner {
                 purchaseInput.pipeInput(event.customerId, event)
                 timings[index] = System.nanoTime() - start
             }
-            val batchElapsedNanos = System.nanoTime() - batchStart
+            val elapsedNanos = System.nanoTime() - batchStart
 
-            var enrichedCount = 0
-            while (!enrichedOutput.isEmpty) {
-                enrichedOutput.readKeyValue()
-                enrichedCount++
-            }
-            var summaryCount = 0
-            while (!summaryOutput.isEmpty) {
-                summaryOutput.readKeyValue()
-                summaryCount++
-            }
-
-            val messagesPerSecond = recordCount / (batchElapsedNanos / 1_000_000_000.0)
-            val latencyMs = timings.map { it / 1_000_000.0 }
-            val sortedLatencies = latencyMs.sorted()
-            val averageLatencyMs = latencyMs.average()
-            val p95LatencyMs = percentile(sortedLatencies, 0.95)
-            val p99LatencyMs = percentile(sortedLatencies, 0.99)
-
-            val report =
-                BenchmarkReport(
-                    project = "28-kafka-streams-demo",
-                    metric = "messages_per_second",
-                    value = messagesPerSecond,
-                    unit = "messages/s",
-                    timestamp = Instant.now().toString(),
-                    command = System.getProperty("sun.java.command", "benchmark $recordCount"),
-                    repeat = 1,
-                    samples = listOf(messagesPerSecond),
-                    summary =
-                        mapOf(
-                            "record_count" to recordCount.toDouble(),
-                            "seed" to SEED.toDouble(),
-                            "enriched_output_records" to enrichedCount.toDouble(),
-                            "summary_output_records" to summaryCount.toDouble(),
-                            "batch_elapsed_ms" to batchElapsedNanos / 1_000_000.0,
-                            "topology_latency_avg_ms" to averageLatencyMs,
-                            "topology_latency_p95_ms" to p95LatencyMs,
-                            "topology_latency_p99_ms" to p99LatencyMs,
-                        ),
-                    environment = environment(recordCount),
-                )
-            write(report, outputPath)
-            report
-        } finally {
-            driver.close()
+            val enrichedCount = enrichedOutput.readKeyValuesToList().size
+            val summaryCount = summaryOutput.readKeyValuesToList().size
+            TopologyMeasurement(
+                recordsPerSecond = recordCount / (elapsedNanos / 1_000_000_000.0),
+                elapsedMs = elapsedNanos / 1_000_000.0,
+                latenciesMs = timings.map { it / 1_000_000.0 },
+                enrichedOutputRecords = enrichedCount,
+                summaryOutputRecords = summaryCount,
+            )
         }
-    }
-
-    private fun percentile(
-        sortedValues: List<Double>,
-        quantile: Double,
-    ): Double {
-        val index = ceil(quantile * sortedValues.size).toInt().coerceAtLeast(1) - 1
-        return sortedValues[index.coerceAtMost(sortedValues.lastIndex)]
-    }
-
-    private fun environment(recordCount: Int): Map<String, String> =
-        mapOf(
-            "mode" to "topology-test-driver",
-            "java_version" to System.getProperty("java.version", "unknown"),
-            "kotlin_version" to KotlinVersion.CURRENT.toString(),
-            "os" to System.getProperty("os.name", "unknown"),
-            "os_arch" to System.getProperty("os.arch", "unknown"),
-            "processors" to Runtime.getRuntime().availableProcessors().toString(),
-            "seed" to SEED.toString(),
-            "records" to recordCount.toString(),
-            "broker" to "none",
-        )
-
-    private fun write(
-        report: BenchmarkReport,
-        outputPath: Path,
-    ) {
-        outputPath.parent?.createDirectories()
-        val json = Json { prettyPrint = true }
-        Files.writeString(outputPath, json.encodeToString(report) + System.lineSeparator())
     }
 }
 
@@ -179,12 +197,22 @@ object Fixtures {
     fun event(index: Int): PurchaseEvent {
         val customer = index % profiles().size
         return PurchaseEvent(
-            eventId = "event-${index.toString().padStart(6, '0')}",
+            eventId = "event-${index.toString().padStart(8, '0')}",
             customerId = "customer-${customer.toString().padStart(3, '0')}",
             sku = "sku-${(index % 17).toString().padStart(2, '0')}",
             quantity = 1 + (index % 4),
-            amountCents = 1_000L + ((index * 137) % 10_000),
+            amountCents = 1_000L + ((index * 137L) % 10_000L),
             occurredAtEpochMs = BASE_TIMESTAMP + index,
         )
     }
+
+    fun fixtureDescriptor(recordCount: Int): String =
+        buildString {
+            append("seed=42;records=")
+            append(recordCount)
+            append(";profiles=")
+            profiles().forEach { append(it).append(';') }
+            append("events=")
+            repeat(recordCount.coerceAtMost(1_000)) { append(event(it)).append(';') }
+        }
 }

@@ -176,6 +176,7 @@ packs:
     benchmark_focus:
       - p95_latency_ms
       - p99_latency_ms
+      - conformance_rate_percent
       - throughput_rps
       - consistency_rate
       - event_throughput
@@ -186,10 +187,12 @@ packs:
       - load test
       - failure scenario
       - consistency proof
+      - local-cloud parity report
     rejection_rules:
       - Reject framework-first architecture with domain depending on infra.
       - Reject RabbitMQ, Kafka, or microservices unless the benchmark needs async scale or fault isolation.
       - Reject "clean architecture" claims without dependency direction tests.
+      - Reject mutable cloud emulator images or parity claims without provider metadata.
 
   - id: mlops-data-platform
     name: MLOps and Data Platform

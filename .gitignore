@@ -1,4 +1,4 @@
-﻿__pycache__/
+__pycache__/
 .pytest_cache/
 .ruff_cache/
 .venv/
@@ -9,3 +9,18 @@ dist/
 target/
 build/
 .kotlin/
+# Local credentials and private key material
+.env
+.env.*
+!.env.example
+credentials*.json
+secrets/
+.secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_ed25519

@@ -1,17 +1,24 @@
 package com.portfolio.streaming
 
-import com.portfolio.streaming.benchmark.BenchmarkRunner
+import com.portfolio.streaming.benchmark.BenchmarkReportV2
 import com.portfolio.streaming.benchmark.Fixtures
+import com.portfolio.streaming.benchmark.RealBrokerBenchmarkRunner
+import com.portfolio.streaming.benchmark.TopologyBenchmarkRunner
 import com.portfolio.streaming.infra.TopologyFactory
 import org.apache.kafka.streams.KafkaStreams
 import java.nio.file.Path
 
 fun main(args: Array<String>) {
     when (args.firstOrNull()?.lowercase()) {
-        "benchmark" -> runBenchmark(args.drop(1))
+        "topology-benchmark", "benchmark" -> runTopologyBenchmark(args.drop(1))
+        "broker-benchmark" -> runBrokerBenchmark(args.drop(1))
         "run" -> runWithKafka()
         "demo", null -> runDemo()
-        else -> error("Usage: demo | benchmark [records] [output.json] | run")
+        else ->
+            error(
+                "Usage: demo | topology-benchmark [records] [warmups] [repeats] [output.json] | " +
+                    "broker-benchmark [records] [warmups] [repeats] [output.json] | run",
+            )
     }
 }
 
@@ -24,18 +31,33 @@ private fun runDemo() {
     println("broker: none (TopologyTestDriver path)")
 }
 
-private fun runBenchmark(arguments: List<String>) {
+private fun runTopologyBenchmark(arguments: List<String>) {
     val recordCount = arguments.getOrNull(0)?.toIntOrNull() ?: 1_000
-    val output = Path.of(arguments.getOrNull(1) ?: "benchmarks/results/latest.json")
-    val report = BenchmarkRunner.run(recordCount, output)
-    println("${report.metric}=${"%.2f".format(java.util.Locale.ROOT, report.value)} ${report.unit}")
-    println(
-        "topology_latency_p95_ms=${"%.4f".format(
-            java.util.Locale.ROOT,
-            report.summary.getValue("topology_latency_p95_ms"),
-        )}",
-    )
+    val warmups = arguments.getOrNull(1)?.toIntOrNull() ?: 1
+    val repeats = arguments.getOrNull(2)?.toIntOrNull() ?: 5
+    val output = Path.of(arguments.getOrNull(3) ?: "benchmarks/results/topology-latest.json")
+    val report = TopologyBenchmarkRunner.run(recordCount, warmups, repeats, output)
+    printPrimaryMetric(report)
     println("result=$output")
+}
+
+private fun runBrokerBenchmark(arguments: List<String>) {
+    val recordCount = arguments.getOrNull(0)?.toIntOrNull() ?: 1_000
+    val warmups = arguments.getOrNull(1)?.toIntOrNull() ?: 1
+    val repeats = arguments.getOrNull(2)?.toIntOrNull() ?: 5
+    val output = Path.of(arguments.getOrNull(3) ?: "benchmarks/results/broker-latest.json")
+    val bootstrapServers =
+        requireNotNull(System.getenv("KAFKA_BOOTSTRAP_SERVERS")) {
+            "KAFKA_BOOTSTRAP_SERVERS is required for broker-benchmark"
+        }
+    val report = RealBrokerBenchmarkRunner.run(bootstrapServers, recordCount, warmups, repeats, output)
+    printPrimaryMetric(report)
+    println("result=$output")
+}
+
+private fun printPrimaryMetric(report: BenchmarkReportV2) {
+    val metric = report.metrics.first()
+    println("${metric.name}=${"%.2f".format(java.util.Locale.ROOT, metric.value)} ${metric.unit}")
 }
 
 private fun runWithKafka() {
@@ -44,6 +66,7 @@ private fun runWithKafka() {
         TopologyFactory.properties(
             applicationId = System.getenv("KAFKA_APPLICATION_ID") ?: "kafka-streams-demo",
             bootstrapServers = bootstrapServers,
+            realBroker = true,
         )
     val streams = KafkaStreams(TopologyFactory.build(), properties)
     Runtime.getRuntime().addShutdownHook(Thread { streams.close() })

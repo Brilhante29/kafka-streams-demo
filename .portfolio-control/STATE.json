@@ -1,0 +1,37 @@
+{
+    "project":  "kafka-streams-demo",
+    "status":  "benchmarked",
+    "phase":  "evidence-publication",
+    "last_commit":  "eede9335508b239c6c88ca105965ab67dce5eb34",
+    "completed_gates":  [
+                            "functional_topology",
+                            "unit_tests",
+                            "real_broker_integration",
+                            "clean_real_broker_baseline",
+                            "canonical_artifact_digest",
+                            "docker_build",
+                            "non_root_runtime",
+                            "compose_health",
+                            "manifest_v2_schema",
+                            "benchmark_v2_semantics",
+                            "fallback_secret_scan",
+                            "trivy_filesystem_scan",
+                            "trivy_image_scan",
+                            "spdx_sbom",
+                            "independent_review_technical_p1_resolved",
+                            "final_structural_validation",
+                            "manual_ci_quality_green",
+                            "manual_ci_security_green",
+                            "ci_sbom_artifact"
+                        ],
+    "failed_gates":  [
+
+                     ],
+    "blockers":  [
+                     "pull_request_ci_not_observed",
+                     "dependency_review_not_observed"
+                 ],
+    "next_action":  "Push the remote-evidence documentation commit to trigger pull_request CI against main; observe all jobs without merging.",
+    "reuse_kit_version":  "1.2.0",
+    "updated_at":  "2026-07-30T12:57:26.9964853-03:00"
+}

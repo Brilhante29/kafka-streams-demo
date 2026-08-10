@@ -57,3 +57,15 @@ programs:
       - k6 load profiles
       - release checklist
     portfolio_story: "From automated delivery to measurable operations and infrastructure."
+  - id: portfolio-evidence-platform
+    name: Portfolio Evidence and Operations Platform
+    narrative: "Connect every repository through versioned evidence, public comparison, and audited operations."
+    problem: "The portfolio needs one trustworthy plane for cross-language benchmark provenance, comparability, publication readiness, and remediation."
+    projects: [31, 32, 33]
+    shared_assets:
+      - benchmark result v2 schema and golden fixtures
+      - OpenAPI command contract
+      - GraphQL query schema
+      - generated design tokens
+      - cross-language compatibility tests
+    portfolio_story: "From isolated benchmark files to an interoperable, queryable, and operable evidence system."

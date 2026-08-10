@@ -1,33 +1,102 @@
 {
-    "project": "28-kafka-streams-demo",
-    "metric": "messages_per_second",
-    "value": 17.916560005037653,
-    "unit": "messages/s",
-    "timestamp": "2026-07-18T20:52:22.623233895Z",
-    "command": "com.portfolio.streaming.AppKt benchmark 100000 /app/benchmarks/results/baseline.json",
-    "repeat": 1,
-    "samples": [
-        17.916560005037653
+    "schema_version": 2,
+    "run_id": "a264d97d-586c-481e-aead-7870e83aeb39",
+    "project": "kafka-streams-demo",
+    "benchmark_id": "real-broker-end-to-end",
+    "workload": {
+        "version": "1",
+        "fixture_digest": "sha256:893e7e67532b8380ee446a912059ad0494d79a89537e41a9a247c179354cd99f",
+        "config_digest": "sha256:12f0bd3eef592ddde35648e64dbf24161f6a957ac0bf703c6761931172e22357",
+        "warmup_iterations": 1,
+        "measured_iterations": 5,
+        "concurrency": 1
+    },
+    "metrics": [
+        {
+            "name": "end_to_end_input_records_per_second",
+            "value": 4965.3503453386265,
+            "unit": "records/s",
+            "direction": "higher_is_better",
+            "samples": [
+                4122.476926115315,
+                3738.606587079359,
+                4965.3503453386265,
+                5237.007723565175,
+                5308.418391934937
+            ],
+            "failures": 0,
+            "summary": {
+                "minimum": 3738.606587079359,
+                "maximum": 5308.418391934937,
+                "p95": 5308.418391934937,
+                "record_count": 1000.0
+            }
+        },
+        {
+            "name": "end_to_end_batch_latency_ms",
+            "value": 201.395658,
+            "unit": "ms",
+            "direction": "lower_is_better",
+            "samples": [
+                242.572613,
+                267.479334,
+                201.395658,
+                190.948735,
+                188.380027
+            ],
+            "failures": 0,
+            "summary": {
+                "minimum": 188.380027,
+                "maximum": 267.479334,
+                "p95": 267.479334
+            }
+        },
+        {
+            "name": "output_invariant_ratio",
+            "value": 1.0,
+            "unit": "ratio",
+            "direction": "target",
+            "samples": [
+                1.0,
+                1.0,
+                1.0,
+                1.0,
+                1.0
+            ],
+            "failures": 0,
+            "summary": {
+                "target": 1.0
+            }
+        }
     ],
-    "summary": {
-        "record_count": 100000.0,
-        "seed": 42.0,
-        "enriched_output_records": 100000.0,
-        "summary_output_records": 100000.0,
-        "batch_elapsed_ms": 5581428.576238,
-        "topology_latency_avg_ms": 55.805872573180096,
-        "topology_latency_p95_ms": 76.641079,
-        "topology_latency_p99_ms": 105.961052
+    "execution": {
+        "command": "com.portfolio.streaming.AppKt broker-benchmark 1000 1 5 /app/benchmarks/results/baseline.json",
+        "started_at": "2026-07-30T14:40:20.900334908Z",
+        "duration_seconds": 6.54952728,
+        "exit_code": 0,
+        "repeat": 5
     },
     "environment": {
-        "mode": "topology-test-driver",
-        "java_version": "21.0.11",
-        "kotlin_version": "2.0.21",
+        "runtime": "Java 21.0.11 / Kotlin 2.4.10",
+        "architecture": "amd64",
+        "hardware_class": "docker-desktop",
         "os": "Linux",
-        "os_arch": "amd64",
-        "processors": "16",
-        "seed": "42",
-        "records": "100000",
-        "broker": "none"
-    }
+        "mode": "real-broker",
+        "broker": "apache/kafka-native:4.3.1@sha256:2885898ba17065023f1bd605f3a81efcfa986014f062b73b91ef5462485f9060",
+        "processing_guarantee": "exactly_once_v2",
+        "partitions": "3",
+        "records": "1000",
+        "seed": "42"
+    },
+    "provenance": {
+        "source_commit": "eede9335508b239c6c88ca105965ab67dce5eb34",
+        "clean_tree": true,
+        "image_ref": "kafka-streams-demo:local",
+        "image_digest": "sha256:913190bf4f387cca93a09d66a3c7ca8969f9636223aad993462e39f21a6af61c",
+        "dependency_lock_digest": "sha256:cc32026725b8b8e31a8b3b6ea6eb159772d9a29a089ad6cf4ef37360249970f6",
+        "producer": "local",
+        "artifact_digest": "sha256:e81a103aed906f48e91551b7f6099f148413d0a3ff12ff84bcc7eaa46200d4fd",
+        "ci_run_url": ""
+    },
+    "comparability_key": "kafka-streams-demo:real-broker-end-to-end:v1:jvm21"
 }

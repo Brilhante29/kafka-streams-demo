@@ -1,11 +1,22 @@
-﻿# References
+# References and attribution
 
-| Reference | License | Used for | Copied code? |
-|---|---|---|---|
-| [Apache Kafka Streams documentation](https://kafka.apache.org/documentation/streams/) | Apache-2.0 | stream/table join, aggregation and topology testing concepts | no |
-| [Kafka Streams TopologyTestDriver API](https://kafka.apache.org/42/javadoc/org/apache/kafka/streams/TopologyTestDriver.html) | Apache-2.0 | deterministic broker-free test and benchmark harness | no |
-| [Gradle Kotlin DSL](https://docs.gradle.org/current/userguide/kotlin_dsl.html) | Apache-2.0 | build configuration conventions | no |
-| [Redpanda](https://docs.redpanda.com/) | BSL 1.1 | optional local Kafka-compatible runtime adapter | no |
-| [Kumo](https://github.com/sivchari/kumo) | MIT | recorded local AWS-compatible option when a future cloud port is needed | no |
+This repository contains original project code. No external example implementation was copied.
 
-Implementation, fixtures, benchmark scripts and reported results must be project-specific.
+## Runtime and build
+
+- Apache Kafka Streams documentation: https://kafka.apache.org/documentation/streams/
+- Kafka exactly-once semantics: https://kafka.apache.org/documentation/#semantics_eos
+- Gradle Wrapper documentation: https://docs.gradle.org/current/userguide/gradle_wrapper.html
+- Kotlin Gradle plugin: https://kotlinlang.org/docs/gradle-configure-project.html
+- Testcontainers Kafka module: https://java.testcontainers.org/modules/kafka/
+- Docker build best practices: https://docs.docker.com/build/building/best-practices/
+
+## Repository governance
+
+- OpenSpec: https://openspec.dev/
+- AITmpl / Claude Code Templates: https://aitmpl.com/
+- Reuse source: https://github.com/Brilhante29/portfolio-reuse-kit
+
+## Licenses
+
+The project is MIT licensed. Dependency licenses are reviewed through Gradle metadata, GitHub dependency review, and the generated SBOM. Apache Kafka is Apache-2.0; Kotlin and Gradle components use their upstream licenses. See each dependency artifact for authoritative terms.
