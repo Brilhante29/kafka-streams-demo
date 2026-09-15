@@ -8,7 +8,7 @@ program:
     - benchmark-result-v2 contract
     - deterministic event fixtures
     - Kafka Streams decision profile
-status: benchmarked
+status: published
 claim: "Processes purchases through a stateful stream-table join and customer aggregation with reproducible broker-backed evidence."
 stack:
   - kotlin
