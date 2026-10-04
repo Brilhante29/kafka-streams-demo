@@ -1,34 +1,23 @@
 schema: portfolio-system
+project:
+  id: 28
+  name: kafka-streams-demo
 references:
-  - portfolio-reuse-kit
+  - portfolio-reuse-kit@1.2.0
 context: |
-  Project: kafka-streams-demo (#unknown)
-  Source of truth:
-    - Use `.portfolio/` as the local snapshot of portfolio-reuse-kit.
-    - Use `project.yaml` for the public project contract.
-    - Use `sdd/` for lightweight artifacts that must exist even without OpenSpec installed.
-  Core rules:
-    - Prove one measurable claim.
-    - Select one component pack from `.portfolio/component-packs/manifest.yaml`.
-    - Record architecture, stack, API, messaging, cloud, database/runtime, and library choices with rejected alternatives.
-    - Keep domain/use-case code independent from framework, database, broker, cloud SDK, transport, and UI.
-    - Prefer local-first execution; use Kumo for AWS-like behavior and adapters for real cloud.
-    - Resolve reuse improvements as patch-now, backlog, or reject.
+  Source of truth order: project.yaml, sdd/, openspec/artifacts/, implementation, benchmark evidence.
+  Prove a stateful stream-table join and aggregation with separate topology-driver and real-broker evidence.
+  Keep domain policy independent from Kafka/runtime and keep the default path local-first with no paid secret.
 rules:
-  reference-reuse:
-    - Prioritize local skills and `.portfolio/`; use external repositories only as attributed references unless a decision record explicitly accepts deeper reuse.
-  intent:
-    - Keep the claim measurable and README-ready.
-  portfolio-impact:
-    - Explain how this repo strengthens a macro project, not just itself.
-  architecture-record:
-    - Include SOLID, LSP, KISS, YAGNI, dependency inversion, and testability evidence.
-  component-pack:
-    - Select from `.portfolio/component-packs/manifest.yaml`.
-    - Do not install external tools without explicit approval.
-  reuse-delta:
-    - Record whether the kit improved because of this project.
-  benchmark-proof:
-    - Include metric, unit, command, fixture, JSON path, and README result.
-  verification:
-    - Verify Docker, tests, benchmark JSON, README, references, reuse review, and validation.
+  specification:
+    - Every requirement maps to implementation, test, and evidence.
+    - Architecture and stack decisions must include rejected alternatives.
+  benchmark:
+    - Never describe TopologyTestDriver as broker throughput.
+    - Release evidence requires a clean source tree and benchmark-result-v2 provenance.
+  reuse:
+    - Consume portfolio-reuse-kit before creating a local equivalent.
+    - Contribute back only generic, tested behavior useful to another repository.
+  delivery:
+    - Finish this repository before opening another portfolio project.
+    - Do not merge without explicit authorization.

@@ -1,65 +1,52 @@
 # Agent Handoff
 
-Project: `28 - kafka-streams-demo`
+## Objective
 
-## Principal Agent Summary
+Finish publication of `#28 kafka-streams-demo` before opening another portfolio repository.
 
-- Objective: provar processamento streaming com enriquecimento e agregaÃ§Ã£o.
-- Portfolio program: `mlops-data-platform`.
-- Public proof claim: `messages_per_second` em topologia determinÃ­stica.
-- Primary benchmark: `1000` mensagens, seed `42`.
-- Default runnable path: `gradle run --args="benchmark 1000 benchmarks/results/latest.json"` ou Docker equivalente.
+## Canonical state
+
+- Worktree: `kafka-wrapper-hardening-v2`.
+- Branch: `agent/gradle-wrapper-hardening-v2`.
+- Clean evidence source: `eede9335508b239c6c88ca105965ab67dce5eb34`.
+- Remote is not configured in this worktree; verify the expected public repository before push.
+- Baseline, SBOM, reviews, and final documentation are intentionally uncommitted until final structural validation.
 
 ## Decisions
 
-| Role | Decision | Evidence Path | Status |
-|---|---|---|---|
-| program-planner | MLOps/data streaming | `project.yaml`, `sdd/spec.md` | complete |
-| architecture-selector | event-driven + hexagonal edge | `sdd/architecture-decision.md` | complete |
-| engineering-principles-reviewer | SOLID/KISS/YAGNI documented | `sdd/technical-decision.md` | complete |
-| stack-decision-agent | Kotlin/JVM/Gradle | `build.gradle.kts` | complete |
-| api-style-agent | CLI | `src/main/kotlin/com/portfolio/streaming/App.kt` | complete |
-| cloud-local-first-agent | no cloud dependency; Kumo future adapter | `sdd/technical-decision.md` | complete |
-| messaging-agent | Kafka Streams, broker-free default | `sdd/spec.md` | complete |
-| language-profile-agent | Kotlin + Java 21 | `project.yaml` | complete |
-| benchmark-harness-agent | fixed fixture and JSON | `sdd/benchmark-plan.md` | complete |
-| design-system-agent | topology diagram and README structure | `docs/topology.md` | complete |
-| security-reuse-reviewer | no credentials/default secrets | `README.md`, `REFERENCES.md` | complete |
-| release-ci-publisher | CI/Docker ready; no push | `.github/workflows/ci.yml` | complete |
+- Kotlin 2.4.10, Java 21, Gradle Wrapper 9.3.0, Kafka Streams 4.3.1.
+- Real-broker benchmark is the public metric; TopologyTestDriver remains a separate microbenchmark.
+- Broker mode uses `exactly_once_v2`, three partitions, idempotent production, and read-committed output.
+- Domain records import no serialization, Kafka, framework, Docker, or cloud type; infrastructure owns wire DTO mapping.
+- No Spring, HTTP/GraphQL/gRPC, database, Kumo, or AWS because none contributes to the claim.
+- Scans use no `ignore-unfixed` or finding suppression.
+- Do not merge without explicit authorization.
 
-## Local-First Runtime
+## Final local evidence
 
-- Docker command: `docker build -t kafka-streams-demo . && docker run --rm kafka-streams-demo`
-- Local services: none on default path.
-- Kumo services: none; no cloud behavior is required.
-- Real target: Kafka-compatible infrastructure via `run` and `KAFKA_BOOTSTRAP_SERVERS`.
-- Default path requires paid secret: no.
+- Five JVM tests: passed.
+- Testcontainers Kafka integration: passed.
+- Clean five-sample broker baseline: 4,965.3503453386265 records/s median; 201.395658 ms median latency; 267.479334 ms p95; invariant 1.0.
+- Throughput population CV: 13.47%; max/min ratio: 1.42.
+- Benchmark semantic and canonical digest validation: passed; tampered metric rejected.
+- Image: `sha256:913190bf4f387cca93a09d66a3c7ca8969f9636223aad993462e39f21a6af61c`.
+- Evidence: `sha256:e81a103aed906f48e91551b7f6099f148413d0a3ff12ff84bcc7eaa46200d4fd`.
+- Trivy filesystem and image HIGH/CRITICAL gates: passed without suppression.
+- SPDX 2.3 SBOM: 158 packages; 25 `NOASSERTION` licenses reviewed; SHA-256 `5653a530a575798d907aa42d9bdc2fc889d9b8f00167014271aa89f68665496f`.
+- Independent review: P0 0; five P1 total; four technical P1 resolved; publication P1 pending PR/CI.
 
-## Architecture Boundaries
+## Bounded claims and backlog
 
-- Domain: serializable event contracts and pure enrichment/summary policy.
-- Use case: topology composition is the streaming application boundary.
-- Ports/adapters: `TopologyFactory` and `KafkaStreams` runtime edge; driver is a deterministic test adapter.
-- Direction: infrastructure depends on domain; domain never imports Kafka or cloud.
+- Single local KRaft broker is not a scale or availability result.
+- Exactly-once crash/restart/retry behavior is not yet measured.
+- Five samples with 13.47% CV require publishing raw values, not only the median.
+- Runtime image still includes topology-test tooling for the benchmark CLI.
+- General `run` service retains a writable results mount.
 
-## Benchmark Handoff
+## Exact next action
 
-- Metric: `messages_per_second`.
-- Unit: `messages/s`.
-- Higher is better for throughput; lower is better for latency.
-- Result path: `benchmarks/results/baseline.json`.
-- Fixture: seed `42`, fixed profile list and generated purchase batch.
+Verify the GitHub remote, push the validated branch, open a PR, and observe CI without merging.
 
-## Open Risks
+## Limit continuity
 
-- A numeric baseline still needs a Java/Docker execution in an environment where those tools are available.
-- Real deployment must decide security, partitions, retention, EOS/retry and schema evolution.
-
-## Publication Gates
-
-- [x] Docker path is defined.
-- [x] Benchmark command and JSON schema are defined.
-- [x] README starts with number and claim.
-- [x] References are documented.
-- [x] No secret is needed in default path.
-- [ ] Numeric benchmark evidence updated after execution.
+Exact weekly usage balance is unavailable. At any product quota warning, finish the current atomic action, refresh `.portfolio-control/CURRENT_HANDOFF.md` and `CONTINUITY_STATE.md`, run `git diff --check`, and stop heavy commands. Record facts and decisions, never private chain-of-thought or credentials.

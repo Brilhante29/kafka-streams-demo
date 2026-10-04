@@ -1,15 +1,24 @@
-# Benchmark
+# Benchmarks
 
-The benchmark uses a fixed deterministic fixture with seed `42`, three profile
-records and a caller-selected batch of purchase events. It feeds the topology
-through `TopologyTestDriver`, so the result measures topology processing rather
-than broker or network overhead.
+## Evidence modes
 
-```bash
-gradle run --args="benchmark 1000 benchmarks/results/latest.json"
-```
+`topology-test-driver` is a deterministic topology microbenchmark. It proves join/aggregate behavior and supports fast regression feedback without a broker.
 
-The JSON reports `messages_per_second` as the primary metric and includes batch
-duration, average/p95/p99 synchronous topology latency, output counts and the
-JVM/OS environment. `baseline.json` is the committed evidence file; generated
-`latest.json` and CI results are ignored by Git.
+`real-broker-end-to-end` is the public benchmark. It measures producer batch submission through Kafka 4.3.1, Kafka Streams `exactly_once_v2`, read-committed output, and aggregate-store convergence.
+
+The modes use different benchmark IDs and must not be compared as equivalent throughput measurements.
+
+## Release evidence
+
+The committed release artifact is `results/baseline.json`. It must:
+
+- follow benchmark-result-v2;
+- come from a clean Git worktree;
+- contain five primary samples after one warmup;
+- name `end_to_end_input_records_per_second` as the first metric;
+- report `output_invariant_ratio=1.0` with zero failures;
+- include full source, image, dependency-lock, workload, and environment provenance.
+
+Development/CI JSON files are ignored. `archive/` preserves explicitly labeled historical evidence that cannot satisfy current gates.
+
+See `sdd/benchmark-plan.md` for the measurement boundary, command, interpretation, and limitations.

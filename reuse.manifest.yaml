@@ -1,0 +1,46 @@
+kit_version: "1.2.0"
+kit_source: "Brilhante29/portfolio-reuse-kit"
+consumed:
+  - source: contracts/benchmark-result-v2.schema.json
+    version: "1.2.0"
+    files:
+      - .portfolio/contracts/benchmark-result-v2.schema.json
+      - .portfolio/contracts/manifest.json
+  - source: templates/validate-gradle-project.ps1
+    version: "1.2.0"
+    files:
+      - tools/validate-gradle-project.ps1
+  - source: decision-brain/kafka-streams-matrix.yaml
+    version: "1.2.0"
+    files:
+      - .portfolio/decision-brain/kafka-streams-matrix.yaml
+      - project.yaml
+      - sdd/technical-decision.md
+  - source: decision-brain/continuity-protocol.yaml
+    version: "1.2.0"
+    files:
+      - .portfolio/decision-brain/continuity-protocol.yaml
+      - tools/capture-continuity-state.ps1
+      - .portfolio-control/CURRENT_HANDOFF.md
+  - source: skills/kafka-streams
+    version: "1.2.0"
+    files:
+      - .codex/skills/kafka-streams/SKILL.md
+      - .claude/skills/kafka-streams/SKILL.md
+local_overrides:
+  - path: Dockerfile
+    reason: "Pins the audited JDK/JRE digests and creates executable RocksDB JNI temp storage for this topology."
+  - path: docker-compose.real.yml
+    reason: "Runs the official Kafka 4.3.1 native image with project-specific topics, limits, and tmpfs mounts."
+  - path: tools/run-broker-benchmark.ps1
+    reason: "Captures image, source, dependency-lock, and clean-tree provenance around this repository's broker benchmark."
+contributed_back:
+  - source: tools/capture-continuity-state.ps1
+    target: tools/capture-continuity-state.ps1
+    status: consumed_from_kit
+  - source: tools/validate-gradle-project.ps1
+    target: templates/validate-gradle-project.ps1
+    status: consumed_from_kit
+  - source: sdd/reuse-improvement-review.md
+    target: backlog/kafka-broker-benchmark-harness
+    status: pending_review

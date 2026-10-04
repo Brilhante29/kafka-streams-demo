@@ -1,10 +1,19 @@
-﻿- [x] `docker build` passes in an environment with Docker daemon access.
-- [x] `docker run` path documented.
-- [x] Benchmark command runs from clean checkout with Java/Gradle or Docker.
-- [x] Numeric benchmark result stored under `benchmarks/results/baseline.json`.
-- [x] README opens with number and claim; numeric result awaits execution.
-- [x] `REFERENCES.md` exists.
-- [x] License exists.
-- [x] No empty directories used as proof.
-- [x] No API key required for the default path.
-- [x] Post angle written in README.
+# Release Checklist
+
+- [x] Core topology implementation is functional.
+- [x] Five unit/topology/configuration tests pass.
+- [x] Broker-backed Testcontainers integration passes with a pinned Kafka image.
+- [x] Clean Compose baseline preserves output/state invariant 1.0 in all five samples.
+- [x] Docker image is multi-stage, pinned, non-root, and read-only at runtime.
+- [x] Benchmark V2 evidence has raw samples, clean provenance, and canonical artifact digest.
+- [x] Project manifest validates against schema V2.
+- [x] Local fallback secret scan passes.
+- [x] Trivy filesystem and image scans pass for HIGH/CRITICAL without suppression.
+- [x] SPDX 2.3 SBOM is generated, retained, and license-reviewed.
+- [x] README, SDD, OpenSpec, review, and control artifacts describe the final local evidence.
+- [x] Independent review completed; P0 is zero and four technical P1 findings are resolved.
+- [x] Final structural validators pass after the evidence-documentation edit.
+- [x] Clean baseline, SBOM, reviews, and documentation are committed by this release-evidence change.
+- [x] Manual GitHub Actions run 30557441814 is green for all applicable jobs and retains the SBOM artifact.
+- [ ] Publication-state P1 is closed by conflict-free PR CI including dependency review.
+- [ ] Merge is explicitly authorized.

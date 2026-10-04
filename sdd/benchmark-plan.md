@@ -1,56 +1,38 @@
-# Benchmark Plan: kafka-streams-demo
+# Benchmark Plan
 
-## Hypothesis
+## Claims and separation
 
-Uma topologia Kafka Streams pequena pode enriquecer e agregar um lote fixo sem
-broker, produzindo uma baseline comparÃ¡vel de `messages_per_second` e latÃªncia.
+The public claim is the real-broker end-to-end rate. `TopologyTestDriver` is a deterministic topology microbenchmark and is never described as broker throughput.
 
-## Command
+## Primary workload
 
-```bash
-gradle run --args="benchmark 1000 benchmarks/results/latest.json"
+- Benchmark ID: `real-broker-end-to-end`.
+- Metric: `end_to_end_input_records_per_second` (`records/s`, higher is better).
+- Secondary: `end_to_end_batch_latency_ms` and `output_invariant_ratio`.
+- Broker: Kafka Native 4.3.1, one KRaft node.
+- Processing: `exactly_once_v2`, three partitions, read-committed output.
+- Fixture: seed 42, three profiles, deterministic purchases.
+- Release size: 1,000 records, one warmup, five measured iterations, concurrency one.
+
+```powershell
+pwsh -File tools/run-broker-benchmark.ps1 -Records 1000 -Warmups 1 -Repeats 5 -OutputPath benchmarks/results/baseline.json
+pwsh -File tools/validate-benchmark-result.ps1 -Path benchmarks/results/baseline.json -ExpectedBenchmarkId real-broker-end-to-end -RequireClean
 ```
 
-Docker equivalente:
+The runner refuses dirty release evidence unless `-AllowDirty` is explicitly used for smoke work.
 
-```bash
-docker run --rm -v "${PWD}/benchmarks/results:/app/benchmarks/results" kafka-streams-demo benchmark 1000 /app/benchmarks/results/latest.json
-```
+## Measurement boundary
 
-## Environment
+Timing begins before producing a batch and ends after all enriched records are consumed and aggregate state reaches the expected count. Producer flush, broker I/O, Streams processing, transaction visibility, output polling, and state convergence are included.
 
-O relatÃ³rio captura timestamp, Java, Kotlin, SO, arquitetura, processadores,
-seed, quantidade e `mode=topology-test-driver`. A execuÃ§Ã£o nÃ£o exige GPU,
-broker, Kumo, AWS ou segredo. O resultado committed deve ser produzido no
-ambiente real de execuÃ§Ã£o, nÃ£o preenchido Ã  mÃ£o.
+## Correctness invariants
 
-## Inputs
+Every measured input must produce one enriched output and increment aggregate order count once. `output_invariant_ratio` must equal 1.0 for every measured iteration; otherwise the run fails and no evidence is written as successful.
 
-- Fixture: `Fixtures` no cÃ³digo.
-- Lote padrÃ£o: 1000 eventos.
-- RepetiÃ§Ãµes: 1 por comando; repetiÃ§Ãµes externas podem comparar `samples`.
-- Warmup: nÃ£o hÃ¡ warmup oculto; a primeira execuÃ§Ã£o deve ser reportada como tal.
-- Seed: 42; trÃªs perfis; `customerId` distribuÃ­do deterministicamente.
+## Evidence
 
-## Metrics
+The V2 JSON includes raw samples, warmups/repeats, fixture/config digests, runtime/OS/architecture, broker image, processing guarantee, partition count, source commit, clean-tree flag, image digest, dependency-lock digest, producer, and comparability key.
 
-| Metric | Unit | Source | Why it matters |
-|---|---:|---|---|
-| messages_per_second | messages/s | elapsed fixed batch | prova throughput da topologia local |
-| topology_latency_avg_ms | ms | each synchronous `pipeInput` | custo mÃ©dio por evento |
-| topology_latency_p95_ms | ms | each synchronous `pipeInput` | cauda de latÃªncia do processamento |
-| topology_latency_p99_ms | ms | each synchronous `pipeInput` | outliers do processamento |
-| enriched_output_records | records | output topic drain | confirma join completo |
-| summary_output_records | records | output topic drain | confirma atualizaÃ§Ã£o incremental |
+## Interpretation limits
 
-## Result schema
-
-O JSON segue `.portfolio/contracts/benchmark-result.schema.json` e inclui
-`project`, `metric`, `value`, `unit`, `timestamp`, `command`, `repeat`,
-`samples`, `summary` e `environment`.
-
-## Interpretation
-
-Este baseline nÃ£o Ã© throughput de Redpanda/Kafka. Ele isola a topologia para
-feedback rÃ¡pido. A prÃ³xima mediÃ§Ã£o, se necessÃ¡ria, deve executar o comando
-`run` em Redpanda e reportar separadamente broker/network/consumer lag.
+This is a single-node Docker Desktop measurement, not a cluster capacity result or SLA. Compare results only when workload and comparability key match. CI runs a smaller smoke workload; only the committed clean baseline is used in public README numbers.

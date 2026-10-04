@@ -1,8 +1,5 @@
 package com.portfolio.streaming.domain
 
-import kotlinx.serialization.Serializable
-
-@Serializable
 data class PurchaseEvent(
     val eventId: String,
     val customerId: String,
@@ -12,7 +9,6 @@ data class PurchaseEvent(
     val occurredAtEpochMs: Long,
 )
 
-@Serializable
 data class CustomerProfile(
     val customerId: String,
     val segment: String,
@@ -20,7 +16,6 @@ data class CustomerProfile(
     val riskScore: Double,
 )
 
-@Serializable
 data class EnrichedPurchase(
     val eventId: String,
     val customerId: String,
@@ -32,7 +27,6 @@ data class EnrichedPurchase(
     val occurredAtEpochMs: Long,
 )
 
-@Serializable
 data class CustomerSummary(
     val customerId: String,
     val segment: String,

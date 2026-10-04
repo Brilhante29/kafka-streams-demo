@@ -1,13 +1,11 @@
 package com.portfolio.streaming
 
 import com.portfolio.streaming.benchmark.Fixtures
-import com.portfolio.streaming.domain.CustomerProfile
 import com.portfolio.streaming.domain.CustomerSummary
-import com.portfolio.streaming.domain.EnrichedPurchase
-import com.portfolio.streaming.domain.PurchaseEvent
-import com.portfolio.streaming.infra.JsonSerde
+import com.portfolio.streaming.infra.DomainJsonSerdes
 import com.portfolio.streaming.infra.TopologyFactory
 import org.apache.kafka.common.serialization.Serdes
+import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.TopologyTestDriver
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -16,10 +14,10 @@ class TopologyTest {
     @Test
     fun `joins profiles and emits running customer aggregate without a broker`() {
         val driver = TopologyTestDriver(TopologyFactory.build(), TopologyFactory.properties("test-join-aggregate"))
-        val profileSerde = JsonSerde(CustomerProfile.serializer())
-        val purchaseSerde = JsonSerde(PurchaseEvent.serializer())
-        val enrichedSerde = JsonSerde(EnrichedPurchase.serializer())
-        val summarySerde = JsonSerde(CustomerSummary.serializer())
+        val profileSerde = DomainJsonSerdes.customerProfile()
+        val purchaseSerde = DomainJsonSerdes.purchaseEvent()
+        val enrichedSerde = DomainJsonSerdes.enrichedPurchase()
+        val summarySerde = DomainJsonSerdes.customerSummary()
 
         try {
             val profiles =
@@ -73,10 +71,19 @@ class TopologyTest {
     }
 
     @Test
+    fun `real broker properties enable global error handling and exactly once`() {
+        val config = StreamsConfig(TopologyFactory.properties(realBroker = true))
+
+        assertThat(config.getBoolean("processing.exception.handler.global.enabled")).isTrue()
+        assertThat(config.getString(StreamsConfig.PROCESSING_GUARANTEE_CONFIG))
+            .isEqualTo(StreamsConfig.EXACTLY_ONCE_V2)
+    }
+
+    @Test
     fun `does not emit an event for an unknown profile`() {
         val driver = TopologyTestDriver(TopologyFactory.build(), TopologyFactory.properties("test-unknown-profile"))
-        val purchaseSerde = JsonSerde(PurchaseEvent.serializer())
-        val enrichedSerde = JsonSerde(EnrichedPurchase.serializer())
+        val purchaseSerde = DomainJsonSerdes.purchaseEvent()
+        val enrichedSerde = DomainJsonSerdes.enrichedPurchase()
 
         try {
             val purchases =

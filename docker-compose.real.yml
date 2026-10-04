@@ -1,25 +1,78 @@
-﻿services:
-  redpanda:
-    image: redpandadata/redpanda:v24.3.6
-    command:
-      - redpanda
-      - start
-      - --overprovisioned
-      - --smp=1
-      - --memory=1G
-      - --reserve-memory=0M
-      - --node-id=0
-      - --check=false
-      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
-      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+name: kafka-streams-demo
+
+services:
+  kafka:
+    image: apache/kafka-native:4.3.1@sha256:2885898ba17065023f1bd605f3a81efcfa986014f062b73b91ef5462485f9060
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: CONTROLLER://:9093,INTERNAL://:9092,EXTERNAL://:19092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_NUM_PARTITIONS: "3"
     ports:
-      - "19092:19092"
+      - "127.0.0.1:19092:19092"
+    healthcheck:
+      test: ["CMD", "/bin/bash", "-ec", "exec 3<>/dev/tcp/localhost/9092"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
 
   streams-app:
-    build: .
+    image: kafka-streams-demo:local
+    build:
+      context: .
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:-0000000000000000000000000000000000000000}
+        DEPENDENCY_LOCK_DIGEST: ${DEPENDENCY_LOCK_DIGEST:-sha256:0000000000000000000000000000000000000000000000000000000000000000}
     command: ["run"]
     environment:
-      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
-      KAFKA_APPLICATION_ID: kafka-streams-demo-real
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_APPLICATION_ID: kafka-streams-demo-runtime
+      KAFKA_BROKER_IMAGE: apache/kafka-native:4.3.1@sha256:2885898ba17065023f1bd605f3a81efcfa986014f062b73b91ef5462485f9060
+      SOURCE_COMMIT: ${SOURCE_COMMIT:-0000000000000000000000000000000000000000}
+      DEPENDENCY_LOCK_DIGEST: ${DEPENDENCY_LOCK_DIGEST:-sha256:0000000000000000000000000000000000000000000000000000000000000000}
+      EVIDENCE_CLEAN_TREE: ${EVIDENCE_CLEAN_TREE:-false}
+      EVIDENCE_IMAGE_REF: kafka-streams-demo:local
+      EVIDENCE_IMAGE_DIGEST: ${EVIDENCE_IMAGE_DIGEST:-sha256:0000000000000000000000000000000000000000000000000000000000000000}
+      EVIDENCE_PRODUCER: ${EVIDENCE_PRODUCER:-local}
+      CI_RUN_URL: ${CI_RUN_URL:-}
+      HARDWARE_CLASS: ${HARDWARE_CLASS:-docker-desktop}
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=75.0 -Dfile.encoding=UTF-8 -Djava.io.tmpdir=/app/build/tmp -Dorg.slf4j.simpleLogger.defaultLogLevel=warn
     depends_on:
-      - redpanda
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./benchmarks/results:/app/benchmarks/results
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m,mode=1777
+      - /app/build/tmp:rw,exec,nosuid,size=128m,uid=10001,gid=10001,mode=0700
+      - /app/build/streams-state:rw,noexec,nosuid,size=256m,uid=10001,gid=10001,mode=0700
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 1G
+
+volumes:
+  kafka-data:
