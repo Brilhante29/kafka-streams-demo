@@ -1,6 +1,10 @@
-# #28 kafka-streams-demo
+# Kafka Streams Enrichment and Aggregation: Broker-Backed, Exactly-Once Evidence in Kotlin
 
 **Broker-backed baseline: 4,965.35 records/s median, 267.48 ms batch p95, output invariant 1.0.** Five measured iterations crossed a real Kafka 4.3.1 broker with `exactly_once_v2`; the evidence is bound to source, image, dependency lock, workload, and its own canonical SHA-256 digest.
+
+[![ci](https://github.com/Brilhante29/kafka-streams-demo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Brilhante29/kafka-streams-demo/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white) ![Kafka Streams](https://img.shields.io/badge/Kafka%20Streams-4.3-231F20?logo=apachekafka&logoColor=white)
 
 ## 1. Overview
 
@@ -204,16 +208,26 @@ SOLID is applied where it creates a real boundary. LSP is not claimed for a none
 
 ## 17. Roadmap
 
-1. Publish the evidence branch, open a PR, and require green GitHub Actions before merge.
-2. Separate the topology microbenchmark CLI dependency from the minimal runtime image.
-3. Add crash/restart/retry and multi-instance rebalance/restoration experiments as measured follow-ups.
-4. Restrict the results bind mount to the benchmark-specific Compose service.
-5. Generalize canonical evidence validation and the broker harness in `portfolio-reuse-kit` after a second consumer proves reuse.
+1. Separate the topology microbenchmark CLI dependency from the minimal runtime image.
+2. Add crash/restart/retry and multi-instance rebalance/restoration experiments as measured follow-ups.
+3. Restrict the results bind mount to the benchmark-specific Compose service.
+4. Generalize canonical evidence validation and the broker harness in `portfolio-reuse-kit` after a second consumer proves reuse.
 
-## 18. References
+## 18. How this repository is built
+
+The project follows the spec-driven workflow of [portfolio-reuse-kit](https://github.com/Brilhante29/portfolio-reuse-kit). Requirements and decisions live in [`sdd/`](sdd) and [`openspec/`](openspec), and [`project.yaml`](project.yaml) records the architecture, stack, and rejected alternatives. Development is AI-assisted and human-governed: [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.md) hold the coding-agent instructions, while tests, validators, and CI decide what gets published.
+
+Related work: [outbox-pattern](https://github.com/Brilhante29/outbox-pattern) (reliable publication to a Kafka-compatible broker) and [event-sourcing-orders](https://github.com/Brilhante29/event-sourcing-orders) (append-only events with rebuildable projections).
+
+## 19. References
 
 See [REFERENCES.md](REFERENCES.md) for Kafka Streams, Gradle Wrapper, Kotlin, Testcontainers, Docker, OpenSpec, AITmpl, licenses, and reuse attribution.
 
-## 19. License
+## 20. Author
+
+**Guilherme Brilhante**, software engineer working on scalable backends and production AI.
+[LinkedIn](https://www.linkedin.com/in/guilhermefreirebrilhanteseveriano/) · [GitHub](https://github.com/Brilhante29) · [Publications](https://dblp.org/pid/353/6812.html)
+
+## 21. License
 
 MIT. See [LICENSE](LICENSE). Dependency and container contents retain their upstream licenses and are inventoried in the release SBOM.
