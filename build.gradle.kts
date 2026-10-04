@@ -29,7 +29,7 @@ configurations[integrationTest.implementationConfigurationName].extendsFrom(conf
 configurations[integrationTest.runtimeOnlyConfigurationName].extendsFrom(configurations.testRuntimeOnly.get())
 
 dependencies {
-    implementation(platform("com.fasterxml.jackson:jackson-bom:2.21.4"))
+    implementation(platform("com.fasterxml.jackson:jackson-bom:2.21.7"))
     implementation("org.apache.kafka:kafka-streams:4.3.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     implementation("org.slf4j:slf4j-simple:2.0.16")
