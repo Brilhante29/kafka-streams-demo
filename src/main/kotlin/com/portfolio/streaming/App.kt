@@ -41,7 +41,7 @@ private fun runBenchmark(arguments: List<String>) {
 private fun runWithKafka() {
     val bootstrapServers = System.getenv("KAFKA_BOOTSTRAP_SERVERS") ?: "localhost:9092"
     val properties =
-        TopologyFactory.properties(
+        TopologyFactory.runtimeProperties(
             applicationId = System.getenv("KAFKA_APPLICATION_ID") ?: "kafka-streams-demo",
             bootstrapServers = bootstrapServers,
         )

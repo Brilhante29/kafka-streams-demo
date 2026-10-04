@@ -68,17 +68,32 @@ object TopologyFactory {
         return builder.build()
     }
 
+    /**
+     * Deterministic settings for [org.apache.kafka.streams.TopologyTestDriver]: the record cache is
+     * disabled and every record is committed, so each aggregate update is observable in order.
+     */
     fun properties(
         applicationId: String = "kafka-streams-demo",
         bootstrapServers: String = "dummy:9092",
+    ): Properties =
+        runtimeProperties(applicationId, bootstrapServers).apply {
+            put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, 0)
+            put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 0)
+            put(StreamsConfig.STATE_DIR_CONFIG, "build/streams-state")
+        }
+
+    /**
+     * Settings for a real broker. Commit interval, record cache, and state directory keep the Kafka
+     * Streams defaults: committing every record against a broker trades throughput for nothing.
+     */
+    fun runtimeProperties(
+        applicationId: String,
+        bootstrapServers: String,
     ): Properties =
         Properties().apply {
             put(StreamsConfig.APPLICATION_ID_CONFIG, applicationId)
             put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
             put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String()::class.java.name)
             put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.ByteArray()::class.java.name)
-            put(StreamsConfig.CACHE_MAX_BYTES_BUFFERING_CONFIG, 0)
-            put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 0)
-            put(StreamsConfig.STATE_DIR_CONFIG, "build/streams-state")
         }
 }
