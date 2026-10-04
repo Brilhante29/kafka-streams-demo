@@ -1,34 +1,49 @@
-# #28 kafka-streams-demo
+# Kafka Streams Enrichment and Aggregation: Stream-Table Join in Kotlin
 
-**Claim:** processamento streaming com enriquecimento por tabela e agregaÃ§Ã£o por cliente.
+**A Kafka Streams topology in Kotlin joins purchases with the latest customer profile, publishes enriched events, and keeps a running per-customer aggregate**, tested deterministically without a broker. Harness benchmark: `17.92 messages/s` (p95 `76.64 ms` per record over 100,000 events). That number measures one RocksDB flush per record in `TopologyTestDriver`, not Kafka Streams throughput ([diagnosis](docs/benchmark-diagnosis.md)).
 
-**Benchmark atual:** `10.2940 messages/s`, `97.1087 ms` p95, lote de `1000` eventos, seed `42`. O JSON versionado registra ambiente e comando.
+[![ci](https://github.com/Brilhante29/kafka-streams-demo/actions/workflows/ci.yml/badge.svg)](https://github.com/Brilhante29/kafka-streams-demo/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?logo=kotlin&logoColor=white) ![Kafka Streams](https://img.shields.io/badge/Kafka%20Streams-3.8-231F20?logo=apachekafka&logoColor=white)
 
-## 1. O que roda
+## Why this exists
 
-Uma topologia Kafka Streams recebe `purchases`, consulta o Ãºltimo `customer-profile`, publica `enriched-purchases` e agrega `customer-summaries` por `customerId`.
+Stream processing code is often only ever tested against a live cluster, which makes tests slow, flaky, and dependent on infrastructure setup. The topology logic, which is the part that carries business meaning, gets the least scrutiny. This repository keeps the topology small, pure where possible, and testable in milliseconds:
 
-O caminho padrÃ£o Ã© local-first e broker-free:
+- business rules live in a domain layer with no Kafka dependency;
+- the topology is built once by `TopologyFactory` and exercised through `TopologyTestDriver`, so tests need no broker, network, or secret;
+- the real-broker path (`run`) uses the same topology with production settings, and Redpanda is available through `docker-compose.real.yml`.
 
-```text
-purchase stream -> KTable join -> enriched purchase -> customer aggregate
+## What it does
+
+```mermaid
+flowchart LR
+    P[customer-profiles] --> T[Profile KTable]
+    E[purchases] --> J[Stream-table enrichment]
+    T --> J
+    J --> X[enriched-purchases]
+    J --> G[group by customerId]
+    G --> A[CustomerSummary aggregate]
+    A --> S[customer-summaries]
 ```
 
-`TopologyTestDriver` processa os registros de forma sÃ­ncrona sem broker real. Isso torna testes e benchmark determinÃ­sticos e evita que o setup de infraestrutura esconda a lÃ³gica da topologia.
+`customer-profiles` is a compacted table in a real deployment. Each purchase is joined with the latest profile, published to `enriched-purchases`, and reduced into a running summary per `customerId` in the `customer-summary-store` state store. Purchases for unknown profiles produce no output (inner join), and a test pins that behavior.
 
-## 2. Stack e decisÃµes
+## Results
 
-- Kotlin 2.0.21, Java 21 e Gradle Kotlin DSL.
-- Apache Kafka Streams 3.8.1 para DSL de stream/table join e state store.
-- JUnit 5, AssertJ e `TopologyTestDriver` para testes determinÃ­sticos.
-- Ktlint como gate de lint.
-- Docker multistage com Gradle e JRE 21.
-- Redpanda Ã© somente o adaptador opcional de runtime real em `docker-compose.real.yml`.
-- NÃ£o hÃ¡ banco nem serviÃ§o cloud no domÃ­nio. Kumo nÃ£o entra no caminho padrÃ£o porque esta topologia nÃ£o chama AWS; uma futura porta de object storage, secrets ou event bus pode usar Kumo local e AWS atrÃ¡s de adaptadores equivalentes.
+| Measure | Value |
+|---|---:|
+| Harness throughput (`messages_per_second`) | 17.92 messages/s |
+| Per-record latency, average / p95 / p99 | 55.81 / 76.64 / 105.96 ms |
+| Records | 100,000 (seed `42`) |
+| Enriched and summary outputs | 100,000 / 100,000 |
+| Mode | `TopologyTestDriver`, no broker |
 
-## 3. ExecuÃ§Ã£o
+How to read it: `TopologyTestDriver` commits after every record, and each commit flushes the RocksDB stores behind the profile table and the aggregate. A controlled diagnostic on one host measured a median `158.62 messages/s` with the published RocksDB stores versus `4621.16 messages/s` with in-memory stores, everything else equal ([raw runs](benchmarks/diagnostics/), [write-up](docs/benchmark-diagnosis.md)). The topology keeps RocksDB because persistent state is the right production default; a broker-backed benchmark is the honest way to report throughput and is the open item.
 
-Com Java 21 e Gradle 8.10+:
+## Quickstart
+
+With Java 21 and Gradle 8.10+:
 
 ```bash
 gradle test
@@ -36,7 +51,7 @@ gradle run --args="demo"
 gradle run --args="benchmark 1000 benchmarks/results/latest.json"
 ```
 
-Com Docker:
+With Docker:
 
 ```bash
 docker build -t kafka-streams-demo .
@@ -44,57 +59,69 @@ docker run --rm kafka-streams-demo demo
 docker run --rm -v "${PWD}/benchmarks/results:/app/benchmarks/results" kafka-streams-demo benchmark 1000 /app/benchmarks/results/latest.json
 ```
 
-O primeiro comando Docker executa `clean check installDist` durante o build. O segundo usa `TopologyTestDriver`; nÃ£o requer Kafka, Redpanda, segredo ou conta paga.
+The image build runs `clean check installDist`. The demo and benchmark need no Kafka, Redpanda, secret, or paid account.
 
-Para conectar infraestrutura Kafka real:
+Against a real broker:
 
 ```bash
 docker compose -f docker-compose.real.yml up --build
 ```
 
-Ou execute a aplicaÃ§Ã£o com `run` e defina `KAFKA_BOOTSTRAP_SERVERS`. Esse adaptador mantÃ©m o domÃ­nio independente do broker; tÃ³picos, autenticaÃ§Ã£o TLS/SASL e observabilidade de produÃ§Ã£o ficam na configuraÃ§Ã£o da implantaÃ§Ã£o.
+Or run the application with `run` and set `KAFKA_BOOTSTRAP_SERVERS` (and optionally `KAFKA_APPLICATION_ID`). Topics, TLS/SASL, and production observability belong to the deployment configuration.
 
-## 4. Testes e validaÃ§Ã£o estrita
+## Design decisions
+
+| Decision | Why | Rejected |
+|---|---|---|
+| Kafka Streams DSL with a `KTable` join | Latest-profile enrichment is exactly a stream-table join | Consumer loop with a hand-rolled cache |
+| Deterministic test-driver settings, separate runtime settings | Tests see every update in order; the broker path keeps Kafka Streams defaults for commits and caching | One property set for both (committing every record in production) |
+| Domain without Kafka imports | Business rules are testable as plain functions | Logic embedded in lambdas inside the topology |
+| Redpanda only as an optional runtime adapter | Kafka API compatible, single container for local runs | A broker in the default test path |
+| No database, cloud, or outbox | The topology does not need them | Infrastructure for its own sake |
+
+## Testing
 
 ```bash
 gradle clean check
-powershell -File tools/validate-project.ps1 -SkipDocker
-powershell -File tools/validate-gradle.ps1
 ```
 
-Os testes cobrem a polÃ­tica pura de enriquecimento, o join com perfil, a agregaÃ§Ã£o incremental e o caso de perfil desconhecido. O CI repete testes, lint, benchmark JSON e `docker build`.
+Tests cover the pure enrichment policy, the profile join, the incremental aggregate, the unknown-profile case, and both property profiles; `check` also runs ktlint. CI repeats tests, lint, the benchmark JSON check, and `docker build`.
 
-## 5. Benchmark reproduzÃ­vel
+## Limitations
 
-O lote padrÃ£o Ã© de `1000` eventos com seed `42`, trÃªs perfis e timestamps determinÃ­sticos. O resultado inclui:
+- The benchmark is a harness measurement (see above), not broker throughput.
+- No schema registry; events use JSON serdes from `kotlinx.serialization`.
+- No exactly-once configuration, windowing, or late-event handling yet.
 
-- `messages_per_second` como mÃ©trica primÃ¡ria;
-- latÃªncia sÃ­ncrona mÃ©dia, p95 e p99 da topologia;
-- contagem de saÃ­das enriquecidas e agregadas;
-- timestamp, comando, JVM, SO, arquitetura, processadores, seed e modo `topology-test-driver`.
-
-O arquivo de referÃªncia Ã© `benchmarks/results/baseline.json`. Como throughput e latÃªncia dependem de CPU/JVM, o nÃºmero sÃ³ Ã© atualizado por uma execuÃ§Ã£o real e nunca Ã© estimado por documentaÃ§Ã£o.
-
-## 6. Estrutura
+## Project structure
 
 ```text
 src/main/kotlin/com/portfolio/streaming/
-  domain/       eventos e polÃ­tica de negÃ³cio pura
-  infra/        serde, topologia e configuraÃ§Ã£o Kafka
-  benchmark/    fixture fixa e relatÃ³rio JSON
-src/test/kotlin/com/portfolio/streaming/
-benchmarks/results/
-docs/topology.md
-sdd/
+  domain/       events and pure business policy
+  infra/        serdes, topology, Kafka configuration
+  benchmark/    fixed fixture and JSON report
+src/test/kotlin/com/portfolio/streaming/   domain, topology, and configuration tests
+benchmarks/    committed baseline and diagnostic runs
+docs/          topology notes and benchmark diagnosis
+sdd/  openspec/  specification, architecture and technical decisions
 ```
 
-O domÃ­nio nÃ£o depende de Kafka, Docker, cloud, transporte ou banco. As funÃ§Ãµes da topologia dependem de ports implÃ­citos do Kafka Streams somente na borda `infra`; o teste injeta o runtime determinÃ­stico do driver. A divisÃ£o mantÃ©m SRP, DIP, ISP e LSP sem criar microserviÃ§os, outbox ou cloud artificialmente: KISS/YAGNI sÃ£o parte da decisÃ£o.
+## How this repository is built
 
-## 7. SDD e referÃªncias
+The project follows the spec-driven workflow of [portfolio-reuse-kit](https://github.com/Brilhante29/portfolio-reuse-kit). Requirements and decisions live in [`sdd/`](sdd) and [`openspec/`](openspec), and [`project.yaml`](project.yaml) records the architecture, stack, and rejected alternatives. Development is AI-assisted and human-governed: [`AGENTS.md`](AGENTS.md) and [`CLAUDE.md`](CLAUDE.md) hold the coding-agent instructions, while tests, validators, and CI decide what gets published.
 
-- [EspecificaÃ§Ã£o](sdd/spec.md)
-- [DecisÃ£o de arquitetura](sdd/architecture-decision.md)
-- [DecisÃ£o tÃ©cnica](sdd/technical-decision.md)
-- [Plano de benchmark](sdd/benchmark-plan.md)
-- [Topologia](docs/topology.md)
-- [ReferÃªncias](REFERENCES.md)
+## Related work
+
+- [outbox-pattern](https://github.com/Brilhante29/outbox-pattern): reliable publication to a Kafka-compatible broker from a transactional database.
+- [event-sourcing-orders](https://github.com/Brilhante29/event-sourcing-orders): append-only events and rebuildable projections.
+
+See [`REFERENCES.md`](REFERENCES.md), the [specification](sdd/spec.md), and the [architecture decision](sdd/architecture-decision.md).
+
+## Author
+
+**Guilherme Brilhante**, software engineer working on scalable backends and production AI.
+[LinkedIn](https://www.linkedin.com/in/guilhermefreirebrilhanteseveriano/) · [GitHub](https://github.com/Brilhante29) · [Publications](https://dblp.org/pid/353/6812.html)
+
+## License
+
+[MIT](LICENSE).

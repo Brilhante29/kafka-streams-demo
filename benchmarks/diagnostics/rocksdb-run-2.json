@@ -1,0 +1,33 @@
+{
+    "project": "28-kafka-streams-demo",
+    "metric": "messages_per_second",
+    "value": 150.90383704178637,
+    "unit": "messages/s",
+    "timestamp": "2026-10-04T04:11:22.048273298Z",
+    "command": "com.portfolio.streaming.AppKt benchmark 2000 /tmp/claude-0/-home-user/28376fa1-ffd4-5892-9ff8-b02ee7f04b53/scratchpad/kdiag/rocksdb-run-2.json",
+    "repeat": 1,
+    "samples": [
+        150.90383704178637
+    ],
+    "summary": {
+        "record_count": 2000.0,
+        "seed": 42.0,
+        "enriched_output_records": 2000.0,
+        "summary_output_records": 2000.0,
+        "batch_elapsed_ms": 13253.473465,
+        "topology_latency_avg_ms": 6.613095828500004,
+        "topology_latency_p95_ms": 9.09479,
+        "topology_latency_p99_ms": 11.614387
+    },
+    "environment": {
+        "mode": "topology-test-driver",
+        "java_version": "21.0.11",
+        "kotlin_version": "2.0.21",
+        "os": "Linux",
+        "os_arch": "amd64",
+        "processors": "4",
+        "seed": "42",
+        "records": "2000",
+        "broker": "none"
+    }
+}
